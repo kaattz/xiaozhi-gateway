@@ -1,0 +1,16 @@
+devices:
+  living_room_xiaozhi:
+    device_id: "aa:bb:cc:dd:ee:ff"
+    client_id: ""
+    room_id: "living_room"
+    room_name: "客厅"
+    ha_area_id: "living_room"
+    ha_device_id: ""
+
+  bedroom_xiaozhi:
+    device_id: "11:22:33:44:55:66"
+    client_id: ""
+    room_id: "bedroom"
+    room_name: "卧室"
+    ha_area_id: "bedroom"
+    ha_device_id: ""
