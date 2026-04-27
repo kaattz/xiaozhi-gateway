@@ -4,7 +4,14 @@
 
 ## Docker 部署
 
-1. 创建并修改设备配置：
+1. 在要运行 Docker 的机器上克隆项目：
+
+```bash
+git clone https://github.com/kaattz/xiaozhi-gateway.git
+cd xiaozhi-gateway
+```
+
+2. 创建并修改设备配置：
 
 ```bash
 cp config/devices.example.yaml config/devices.yaml
@@ -19,25 +26,25 @@ devices:
     room_name: "客厅"
 ```
 
-2. 启动服务：
+3. 启动服务：
 
 ```bash
 docker compose up -d --build
 ```
 
-3. 检查健康状态：
+4. 检查健康状态：
 
 ```bash
 curl http://127.0.0.1:8125/health
 ```
 
-4. ESP32 端网关地址配置为：
+5. ESP32 端网关地址配置为：
 
 ```text
 http://NAS_IP:8125
 ```
 
-5. Home Assistant MCP 集成里的 gateway URL 配置为：
+6. Home Assistant MCP 集成里的 gateway URL 配置为：
 
 ```text
 http://NAS_IP:8125
