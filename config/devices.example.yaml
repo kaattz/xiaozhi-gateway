@@ -14,3 +14,9 @@ devices:
     room_name: "卧室"
     ha_area_id: "bedroom"
     ha_device_id: ""
+
+remote_text:
+  provider: "wyoming"
+  wyoming_host: "core-piper"
+  wyoming_port: 10200
+  ffmpeg_binary: "ffmpeg"

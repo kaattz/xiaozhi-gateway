@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 import pytest
 
-from app.config import load_devices
+from app.config import load_devices, load_remote_text_config
 from app.main import app
 
 
@@ -98,3 +98,63 @@ devices:
 
     with pytest.raises(ValueError, match="missing room_id for device: one"):
         load_devices(config)
+
+
+def test_remote_text_config_uses_defaults_when_missing(tmp_path):
+    config = tmp_path / "devices.yaml"
+    config.write_text("devices: {}\n", encoding="utf-8")
+
+    remote_text = load_remote_text_config(config)
+
+    assert remote_text.provider == "wyoming"
+    assert remote_text.wyoming_host == "core-piper"
+    assert remote_text.wyoming_port == 10200
+    assert remote_text.ffmpeg_binary == "ffmpeg"
+
+
+def test_remote_text_config_loads_yaml_values(tmp_path):
+    config = tmp_path / "devices.yaml"
+    config.write_text(
+        """
+devices: {}
+remote_text:
+  provider: "wyoming"
+  wyoming_host: "192.168.166.68"
+  wyoming_port: 10200
+  ffmpeg_binary: "/usr/bin/ffmpeg"
+""",
+        encoding="utf-8",
+    )
+
+    remote_text = load_remote_text_config(config)
+
+    assert remote_text.provider == "wyoming"
+    assert remote_text.wyoming_host == "192.168.166.68"
+    assert remote_text.wyoming_port == 10200
+    assert remote_text.ffmpeg_binary == "/usr/bin/ffmpeg"
+
+
+def test_remote_text_config_env_overrides_yaml_for_addon_options(tmp_path, monkeypatch):
+    config = tmp_path / "devices.yaml"
+    config.write_text(
+        """
+devices: {}
+remote_text:
+  provider: "local"
+  wyoming_host: "old-host"
+  wyoming_port: 12345
+  ffmpeg_binary: "/old/ffmpeg"
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("XIAOZHI_REMOTE_TEXT_PROVIDER", "wyoming")
+    monkeypatch.setenv("XIAOZHI_WYOMING_HOST", "core-piper")
+    monkeypatch.setenv("XIAOZHI_WYOMING_PORT", "10200")
+    monkeypatch.setenv("XIAOZHI_FFMPEG_BINARY", "ffmpeg")
+
+    remote_text = load_remote_text_config(config)
+
+    assert remote_text.provider == "wyoming"
+    assert remote_text.wyoming_host == "core-piper"
+    assert remote_text.wyoming_port == 10200
+    assert remote_text.ffmpeg_binary == "ffmpeg"

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DeviceMapping(BaseModel):
@@ -38,3 +38,25 @@ class WakeDetectedRequest(BaseModel):
 
 class SessionEndRequest(BaseModel):
     device_id: str
+
+
+class RemoteTextJobRequest(BaseModel):
+    device_id: str
+    client_id: str = ""
+    text: str = Field(min_length=1, max_length=120)
+
+
+class RemoteTextJobCreated(BaseModel):
+    job_id: str
+    device_id: str
+    sample_rate: int
+    frame_duration_ms: int
+    frame_count: int
+    expires_at: float
+
+
+class RemoteTextFramesResponse(BaseModel):
+    job_id: str
+    sample_rate: int
+    frame_duration_ms: int
+    frames_base64: list[str]

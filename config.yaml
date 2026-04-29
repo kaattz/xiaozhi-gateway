@@ -1,0 +1,21 @@
+name: Xiaozhi Gateway
+version: "0.1.0"
+slug: xiaozhi_gateway
+description: Xiaozhi Home Assistant gateway
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+ports:
+  8125/tcp: 8125
+map:
+  - type: addon_config
+    read_only: false
+options:
+  piper_host: core-piper
+  piper_port: 10200
+schema:
+  piper_host: str
+  piper_port: int
