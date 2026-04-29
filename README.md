@@ -53,6 +53,7 @@ https://github.com/kaattz/xiaozhi-gateway
 `xiaozhi-gateway` add-on 配置页里填写 Piper 和设备信息：
 
 ```yaml
+addon_version: "0.1.1"
 piper_host: core-piper
 piper_port: 10200
 devices:
@@ -66,6 +67,8 @@ devices:
 ```
 
 保存配置并重启 add-on 后，启动脚本会自动生成 `/config/devices.yaml`。不要再手工改 add-on 配置目录里的 `devices.yaml`，下次重启会被配置页内容覆盖。
+
+如果配置页只看到 `piper_host` 和 `piper_port`，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新，确认 `addon_version` 显示为 `0.1.1` 后再安装或重启。
 
 `remote_text` 默认配置：
 
