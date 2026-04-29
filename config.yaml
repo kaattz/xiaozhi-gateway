@@ -1,5 +1,5 @@
 name: Xiaozhi Gateway
-version: "0.1.1"
+version: "0.1.2"
 slug: xiaozhi_gateway
 description: Xiaozhi Home Assistant gateway
 arch:
@@ -14,7 +14,7 @@ map:
   - type: addon_config
     read_only: false
 options:
-  addon_version: "0.1.1"
+  addon_version: "0.1.2"
   piper_host: core-piper
   piper_port: 10200
   devices:

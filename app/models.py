@@ -60,3 +60,6 @@ class RemoteTextFramesResponse(BaseModel):
     sample_rate: int
     frame_duration_ms: int
     frames_base64: list[str]
+    offset: int = 0
+    next_offset: int | None = None
+    total_frames: int = 0

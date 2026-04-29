@@ -1,6 +1,6 @@
 import base64
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 
 from app.arbitration import decide_wake
 from app.config import load_devices, load_remote_text_config
@@ -118,16 +118,28 @@ def create_remote_text_job(request: RemoteTextJobRequest) -> RemoteTextJobCreate
 
 
 @app.get("/remote-text/jobs/{job_id}/frames", response_model=RemoteTextFramesResponse)
-def get_remote_text_frames(job_id: str) -> RemoteTextFramesResponse:
+def get_remote_text_frames(
+    job_id: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(4, ge=1, le=16),
+) -> RemoteTextFramesResponse:
     job = remote_text_jobs.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
+    total_frames = len(job.frames)
+    page_frames = job.frames[offset : offset + limit]
+    next_offset = offset + len(page_frames)
+    if next_offset >= total_frames:
+        next_offset = None
     return RemoteTextFramesResponse(
         job_id=job.job_id,
         sample_rate=job.sample_rate,
         frame_duration_ms=job.frame_duration_ms,
         frames_base64=[
             base64.b64encode(frame).decode("ascii")
-            for frame in job.frames
+            for frame in page_frames
         ],
+        offset=offset,
+        next_offset=next_offset,
+        total_frames=total_frames,
     )
