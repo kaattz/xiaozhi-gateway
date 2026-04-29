@@ -10,13 +10,15 @@ def read(path: str) -> str:
 
 
 def test_haos_addon_metadata_exposes_gateway_port_and_piper_options():
-    config = read("config.yaml")
+    config = yaml.safe_load(read("config.yaml"))
 
-    assert "slug: xiaozhi_gateway" in config
-    assert "8125/tcp: 8125" in config
-    assert "piper_host: core-piper" in config
-    assert "piper_port: 10200" in config
-    assert "addon_config" in config
+    assert config["slug"] == "xiaozhi_gateway"
+    assert config["ports"]["8125/tcp"] == 8125
+    assert config["options"]["piper_host"] == "core-piper"
+    assert config["options"]["piper_port"] == 10200
+    assert config["options"]["devices"][0]["key"] == "living_room_xiaozhi"
+    assert config["schema"]["devices"][0]["device_id"] == "str"
+    assert config["map"][0]["type"] == "addon_config"
 
 
 def test_repository_metadata_allows_home_assistant_to_add_github_repo():
@@ -42,6 +44,7 @@ def test_run_script_uses_addon_options_and_addon_config_file():
     run_sh = read("run.sh")
 
     assert "/data/options.json" in run_sh
+    assert "python -m app.addon_options" in run_sh
     assert "XIAOZHI_REMOTE_TEXT_PROVIDER=wyoming" in run_sh
     assert "XIAOZHI_GATEWAY_CONFIG=/config/devices.yaml" in run_sh
     assert "uvicorn app.main:app" in run_sh

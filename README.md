@@ -50,14 +50,22 @@ https://github.com/kaattz/xiaozhi-gateway
 
 ### Add-on 配置
 
-`xiaozhi-gateway` add-on 默认连接：
+`xiaozhi-gateway` add-on 配置页里填写 Piper 和设备信息：
 
 ```yaml
 piper_host: core-piper
 piper_port: 10200
+devices:
+  - key: living_room_xiaozhi
+    device_id: "你的ESP32_WIFI_MAC"
+    client_id: livingroom_xiaozhi
+    room_id: living_room
+    room_name: 客厅
+    ha_area_id: living_room
+    ha_device_id: ""
 ```
 
-首次启动时会在 add-on 配置目录生成 `devices.yaml`，把里面的 `device_id`、`client_id`、房间信息改成你的设备。
+保存配置并重启 add-on 后，启动脚本会自动生成 `/config/devices.yaml`。不要再手工改 add-on 配置目录里的 `devices.yaml`，下次重启会被配置页内容覆盖。
 
 `remote_text` 默认配置：
 

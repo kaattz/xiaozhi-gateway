@@ -23,10 +23,7 @@ print(f"export XIAOZHI_WYOMING_PORT={port}")
 PY
   )"
 
-  mkdir -p /config
-  if [ ! -f /config/devices.yaml ]; then
-    cp /app/config/devices.example.yaml /config/devices.yaml
-  fi
+  python -m app.addon_options /data/options.json /config/devices.yaml
 fi
 
 exec uvicorn app.main:app --host 0.0.0.0 --port 8125

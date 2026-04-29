@@ -16,6 +16,22 @@ map:
 options:
   piper_host: core-piper
   piper_port: 10200
+  devices:
+    - key: living_room_xiaozhi
+      device_id: "aa:bb:cc:dd:ee:ff"
+      client_id: livingroom_xiaozhi
+      room_id: living_room
+      room_name: 客厅
+      ha_area_id: living_room
+      ha_device_id: ""
 schema:
   piper_host: str
   piper_port: int
+  devices:
+    - key: str
+      device_id: str
+      client_id: str?
+      room_id: str
+      room_name: str
+      ha_area_id: str
+      ha_device_id: str?
