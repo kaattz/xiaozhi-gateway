@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 import pytest
 
-from app.config import load_devices, load_remote_text_config
+from app.config import load_announcement_config, load_devices
 from app.main import app
 
 
@@ -100,61 +100,77 @@ devices:
         load_devices(config)
 
 
-def test_remote_text_config_uses_defaults_when_missing(tmp_path):
+def test_announcement_config_uses_defaults_when_missing(tmp_path):
     config = tmp_path / "devices.yaml"
     config.write_text("devices: {}\n", encoding="utf-8")
 
-    remote_text = load_remote_text_config(config)
+    announcement = load_announcement_config(config)
 
-    assert remote_text.provider == "wyoming"
-    assert remote_text.wyoming_host == "core-piper"
-    assert remote_text.wyoming_port == 10200
-    assert remote_text.ffmpeg_binary == "ffmpeg"
+    assert announcement.enabled is True
+    assert announcement.provider == "doubao"
+    assert announcement.frame_format == "opus"
+    assert announcement.frame_duration_ms == 60
+    assert announcement.doubao.api_key == ""
+    assert announcement.doubao.model == "doubao-tts"
+    assert announcement.doubao.voice == "zh_female_kailangjiejie_moon_bigtts"
+    assert announcement.doubao.sample_rate == 16000
 
 
-def test_remote_text_config_loads_yaml_values(tmp_path):
+def test_announcement_config_loads_yaml_values(tmp_path):
     config = tmp_path / "devices.yaml"
     config.write_text(
         """
 devices: {}
-remote_text:
-  provider: "wyoming"
-  wyoming_host: "192.168.166.68"
-  wyoming_port: 10200
-  ffmpeg_binary: "/usr/bin/ffmpeg"
+announcement:
+  enabled: true
+  provider: "doubao"
+  frame_format: "opus"
+  frame_duration_ms: 60
+  doubao:
+    api_key: "secret"
+    model: "doubao-tts"
+    voice: "voice-id"
+    sample_rate: 16000
 """,
         encoding="utf-8",
     )
 
-    remote_text = load_remote_text_config(config)
+    announcement = load_announcement_config(config)
 
-    assert remote_text.provider == "wyoming"
-    assert remote_text.wyoming_host == "192.168.166.68"
-    assert remote_text.wyoming_port == 10200
-    assert remote_text.ffmpeg_binary == "/usr/bin/ffmpeg"
+    assert announcement.enabled is True
+    assert announcement.provider == "doubao"
+    assert announcement.doubao.api_key == "secret"
+    assert announcement.doubao.voice == "voice-id"
 
 
-def test_remote_text_config_env_overrides_yaml_for_addon_options(tmp_path, monkeypatch):
+def test_announcement_config_env_overrides_yaml_for_secret(monkeypatch, tmp_path):
     config = tmp_path / "devices.yaml"
     config.write_text(
         """
 devices: {}
-remote_text:
-  provider: "local"
-  wyoming_host: "old-host"
-  wyoming_port: 12345
-  ffmpeg_binary: "/old/ffmpeg"
+announcement:
+  enabled: false
+  provider: "bailian"
+  doubao:
+    api_key: "old"
+    model: "old-model"
+    voice: "old-voice"
+    sample_rate: 24000
 """,
         encoding="utf-8",
     )
-    monkeypatch.setenv("XIAOZHI_REMOTE_TEXT_PROVIDER", "wyoming")
-    monkeypatch.setenv("XIAOZHI_WYOMING_HOST", "core-piper")
-    monkeypatch.setenv("XIAOZHI_WYOMING_PORT", "10200")
-    monkeypatch.setenv("XIAOZHI_FFMPEG_BINARY", "ffmpeg")
+    monkeypatch.setenv("XIAOZHI_ANNOUNCEMENT_ENABLED", "true")
+    monkeypatch.setenv("XIAOZHI_ANNOUNCEMENT_PROVIDER", "doubao")
+    monkeypatch.setenv("XIAOZHI_DOUBAO_API_KEY", "new-secret")
+    monkeypatch.setenv("XIAOZHI_DOUBAO_MODEL", "doubao-tts")
+    monkeypatch.setenv("XIAOZHI_DOUBAO_VOICE", "new-voice")
+    monkeypatch.setenv("XIAOZHI_DOUBAO_SAMPLE_RATE", "16000")
 
-    remote_text = load_remote_text_config(config)
+    announcement = load_announcement_config(config)
 
-    assert remote_text.provider == "wyoming"
-    assert remote_text.wyoming_host == "core-piper"
-    assert remote_text.wyoming_port == 10200
-    assert remote_text.ffmpeg_binary == "ffmpeg"
+    assert announcement.enabled is True
+    assert announcement.provider == "doubao"
+    assert announcement.doubao.api_key == "new-secret"
+    assert announcement.doubao.model == "doubao-tts"
+    assert announcement.doubao.voice == "new-voice"
+    assert announcement.doubao.sample_rate == 16000

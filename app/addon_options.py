@@ -34,11 +34,20 @@ def render_devices_config(options: dict[str, Any]) -> str:
 
     config = {
         "devices": rendered_devices,
-        "remote_text": {
-            "provider": "wyoming",
-            "wyoming_host": str(options.get("piper_host") or "core-piper").strip(),
-            "wyoming_port": int(options.get("piper_port") or 10200),
-            "ffmpeg_binary": "ffmpeg",
+        "announcement": {
+            "enabled": bool(options.get("announcement_enabled", True)),
+            "provider": str(options.get("announcement_provider") or "doubao").strip(),
+            "frame_format": "opus",
+            "frame_duration_ms": 60,
+            "doubao": {
+                "api_key": str(options.get("doubao_api_key") or "").strip(),
+                "model": str(options.get("doubao_model") or "doubao-tts").strip(),
+                "voice": str(
+                    options.get("doubao_voice")
+                    or "zh_female_kailangjiejie_moon_bigtts"
+                ).strip(),
+                "sample_rate": int(options.get("doubao_sample_rate") or 16000),
+            },
         },
     }
     return yaml.safe_dump(config, allow_unicode=True, sort_keys=False)

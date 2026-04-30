@@ -1,5 +1,5 @@
 name: Xiaozhi Gateway
-version: "0.1.2"
+version: "0.1.5"
 slug: xiaozhi_gateway
 description: Xiaozhi Home Assistant gateway
 arch:
@@ -14,9 +14,13 @@ map:
   - type: addon_config
     read_only: false
 options:
-  addon_version: "0.1.2"
-  piper_host: core-piper
-  piper_port: 10200
+  addon_version: "0.1.5"
+  announcement_enabled: true
+  announcement_provider: doubao
+  doubao_api_key: ""
+  doubao_model: doubao-tts
+  doubao_voice: zh_female_kailangjiejie_moon_bigtts
+  doubao_sample_rate: 16000
   devices:
     - key: living_room_xiaozhi
       device_id: "aa:bb:cc:dd:ee:ff"
@@ -27,8 +31,12 @@ options:
       ha_device_id: ""
 schema:
   addon_version: str
-  piper_host: str
-  piper_port: int
+  announcement_enabled: bool
+  announcement_provider: str
+  doubao_api_key: password?
+  doubao_model: str
+  doubao_voice: str
+  doubao_sample_rate: int
   devices:
     - key: str
       device_id: str

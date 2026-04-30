@@ -1,9 +1,9 @@
-from app.remote_text_jobs import RemoteTextJobStore
+from app.audio_jobs import AudioJobStore
 
 
 def test_job_store_creates_and_reads_frames():
     now = 1000.0
-    store = RemoteTextJobStore(now=lambda: now)
+    store = AudioJobStore(now=lambda: now)
 
     job = store.create(
         device_id="aa:bb:cc:dd:ee:ff",
@@ -20,7 +20,7 @@ def test_job_store_creates_and_reads_frames():
 
 def test_job_store_expires_jobs():
     current = 1000.0
-    store = RemoteTextJobStore(now=lambda: current)
+    store = AudioJobStore(now=lambda: current)
     job = store.create("device", [b"one"], 16000, 60)
 
     current = 1121.0

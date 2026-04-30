@@ -4,12 +4,11 @@
 
 ## HAOS Add-on 部署
 
-推荐把 `xiaozhi-gateway` 和 Piper 都放在 HAOS `192.168.166.68` 上：
+推荐把 `xiaozhi-gateway` 放在 HAOS `192.168.166.68` 上：
 
 ```text
 HAOS 192.168.166.68
   ├─ Home Assistant
-  ├─ Piper add-on: core-piper:10200
   └─ xiaozhi-gateway add-on: 8125
 ```
 
@@ -41,21 +40,23 @@ https://github.com/kaattz/xiaozhi-gateway
 
 | 依赖 | 安装位置 |
 |---|---|
-| Piper | 官方 Piper add-on |
-| `ffmpeg` | `xiaozhi-gateway` add-on 容器内 |
 | `libopus` | `xiaozhi-gateway` add-on 容器内 |
 | `opuslib` | `xiaozhi-gateway` Python 环境 |
 
-不要在 HAOS 主系统里装 `ffmpeg/libopus`。
+不要在 HAOS 主系统里装 `libopus`，add-on 容器会自己带运行依赖。
 
 ### Add-on 配置
 
-`xiaozhi-gateway` add-on 配置页里填写 Piper 和设备信息：
+`xiaozhi-gateway` add-on 配置页里填写播报和设备信息：
 
 ```yaml
-addon_version: "0.1.2"
-piper_host: core-piper
-piper_port: 10200
+addon_version: "0.1.5"
+announcement_enabled: true
+announcement_provider: doubao
+doubao_api_key: "你的火山边缘大模型网关API key"
+doubao_model: doubao-tts
+doubao_voice: zh_female_kailangjiejie_moon_bigtts
+doubao_sample_rate: 16000
 devices:
   - key: living_room_xiaozhi
     device_id: "你的ESP32_WIFI_MAC"
@@ -68,16 +69,21 @@ devices:
 
 保存配置并重启 add-on 后，启动脚本会自动生成 `/config/devices.yaml`。不要再手工改 add-on 配置目录里的 `devices.yaml`，下次重启会被配置页内容覆盖。
 
-如果配置页只看到 `piper_host` 和 `piper_port`，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新，确认 `addon_version` 显示为 `0.1.2` 后再安装或重启。
+如果配置页里看不到 `addon_version: "0.1.5"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
 
-`remote_text` 默认配置：
+`announcement` 播报模式默认配置：
 
 ```yaml
-remote_text:
-  provider: "wyoming"
-  wyoming_host: "core-piper"
-  wyoming_port: 10200
-  ffmpeg_binary: "ffmpeg"
+announcement:
+  enabled: true
+  provider: "doubao"
+  frame_format: "opus"
+  frame_duration_ms: 60
+  doubao:
+    api_key: "你的火山边缘大模型网关API key"
+    model: "doubao-tts"
+    voice: "zh_female_kailangjiejie_moon_bigtts"
+    sample_rate: 16000
 ```
 
 ESP32 端网关地址配置为：
@@ -143,37 +149,23 @@ http://NAS_IP:8125
 | `POST /wake-detected` | 设备上报唤醒 |
 | `POST /session/end` | 设备结束会话 |
 | `GET /active-context` | HA MCP 获取当前房间上下文 |
-| `POST /remote-text/jobs` | 把文字生成 Opus 音频任务 |
-| `GET /remote-text/jobs/{job_id}/frames` | 获取任务的 base64 Opus 帧 |
+| `POST /announcement/jobs` | 把播报文本生成本地播放音频任务 |
+| `GET /announcement/jobs/{job_id}/frames` | 分页获取播报任务的 base64 Opus 帧 |
 
-## Remote Text Audio
+## Announcement Audio
 
-这个功能用于把 Home Assistant 发来的文字转成音频，让 ESP32 再按“麦克风音频”上传给小智官方云。
+这个功能用于播报固定文字。HA 写入 `text.<client_id>_bo_bao` 后，ESP32 从 gateway 拉取音频并本地播放，不上传到小智云，也不让小智云改写内容。
 
-运行依赖：
+`text.<client_id>_zhi_ling` 入口已移除，避免把文本误当作小智云对话输入。现在 HA 侧只保留播报入口 `text.<client_id>_bo_bao`。
 
-| 依赖 | 用途 |
-|---|---|
-| Piper add-on | 通过 Wyoming 协议生成语音 |
-| `ffmpeg` | 转成 16 kHz mono s16le PCM |
-| `libopus` / `opuslib` | 编码 raw Opus 帧 |
-
-配置写在 `config/devices.yaml`：
+调用示例：
 
 ```yaml
-remote_text:
-  provider: "wyoming"
-  wyoming_host: "core-piper"
-  wyoming_port: 10200
-  ffmpeg_binary: "ffmpeg"
+action: text.set_value
+target:
+  entity_id: text.livingroom_xiaozhi_bo_bao
+data:
+  value: 现在房间温度较高，是否打开空调。
 ```
 
-接口示例：
-
-```bash
-curl -X POST http://127.0.0.1:8125/remote-text/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"device_id":"aa:bb:cc:dd:ee:ff","text":"现在房间温度比较高"}'
-```
-
-不要把这个服务暴露到公网。
+第一版只实现 `doubao` provider；`bailian`、`piper` 名称预留，不做自动降级。

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class RemoteTextJob:
+class AudioJob:
     job_id: str
     device_id: str
     frames: list[bytes]
@@ -14,7 +14,7 @@ class RemoteTextJob:
     expires_at: float
 
 
-class RemoteTextJobStore:
+class AudioJobStore:
     def __init__(
         self,
         ttl_seconds: int = 120,
@@ -22,7 +22,7 @@ class RemoteTextJobStore:
     ) -> None:
         self._ttl_seconds = ttl_seconds
         self._now = now
-        self._jobs: dict[str, RemoteTextJob] = {}
+        self._jobs: dict[str, AudioJob] = {}
 
     def create(
         self,
@@ -30,9 +30,9 @@ class RemoteTextJobStore:
         frames: list[bytes],
         sample_rate: int,
         frame_duration_ms: int,
-    ) -> RemoteTextJob:
+    ) -> AudioJob:
         self._cleanup()
-        job = RemoteTextJob(
+        job = AudioJob(
             job_id=uuid.uuid4().hex,
             device_id=device_id,
             frames=frames,
@@ -43,7 +43,7 @@ class RemoteTextJobStore:
         self._jobs[job.job_id] = job
         return job
 
-    def get(self, job_id: str) -> RemoteTextJob | None:
+    def get(self, job_id: str) -> AudioJob | None:
         self._cleanup()
         return self._jobs.get(job_id)
 

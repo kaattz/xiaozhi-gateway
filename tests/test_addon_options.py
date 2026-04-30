@@ -6,8 +6,12 @@ from app.addon_options import render_devices_config
 def test_render_devices_config_from_addon_options():
     output = render_devices_config(
         {
-            "piper_host": "core-piper",
-            "piper_port": 10200,
+            "announcement_enabled": True,
+            "announcement_provider": "doubao",
+            "doubao_api_key": "secret-key",
+            "doubao_model": "doubao-tts",
+            "doubao_voice": "zh_female_kailangjiejie_moon_bigtts",
+            "doubao_sample_rate": 16000,
             "devices": [
                 {
                     "key": "living_room_xiaozhi",
@@ -32,11 +36,18 @@ def test_render_devices_config_from_addon_options():
         "ha_area_id": "living_room",
         "ha_device_id": "",
     }
-    assert config["remote_text"] == {
-        "provider": "wyoming",
-        "wyoming_host": "core-piper",
-        "wyoming_port": 10200,
-        "ffmpeg_binary": "ffmpeg",
+    assert "remote_text" not in config
+    assert config["announcement"] == {
+        "enabled": True,
+        "provider": "doubao",
+        "frame_format": "opus",
+        "frame_duration_ms": 60,
+        "doubao": {
+            "api_key": "secret-key",
+            "model": "doubao-tts",
+            "voice": "zh_female_kailangjiejie_moon_bigtts",
+            "sample_rate": 16000,
+        },
     }
 
 

@@ -1,31 +1,37 @@
 import base64
+import logging
 
 from fastapi import FastAPI, HTTPException, Query
 
+from app.audio_frames import FRAME_DURATION_MS, SAMPLE_RATE
+from app.audio_jobs import AudioJobStore
+from app.announcement_audio import (
+    AnnouncementDisabledError,
+    MissingTtsApiKeyError,
+    TtsAuthenticationError,
+    TtsEmptyAudioError,
+    TtsProviderError,
+    TtsTimeoutError,
+    UnsupportedAnnouncementProviderError,
+    synthesize_announcement_frames,
+)
 from app.arbitration import decide_wake
-from app.config import load_devices, load_remote_text_config
+from app.config import load_announcement_config, load_devices
 from app.models import (
     ActiveContextSetRequest,
+    AnnouncementFramesResponse,
+    AnnouncementJobCreated,
+    AnnouncementJobRequest,
     DevicesResponse,
-    RemoteTextFramesResponse,
-    RemoteTextJobCreated,
-    RemoteTextJobRequest,
     SessionEndRequest,
     WakeDetectedRequest,
 )
-from app.remote_text_audio import (
-    FRAME_DURATION_MS,
-    SAMPLE_RATE,
-    encode_raw_opus_frames,
-    normalize_wav_to_pcm_s16le,
-    synthesize_remote_text_wav,
-)
-from app.remote_text_jobs import RemoteTextJobStore
 from app.session_store import SessionStore
 
 app = FastAPI(title="Xiaozhi Gateway")
+logger = logging.getLogger(__name__)
 session_store = SessionStore()
-remote_text_jobs = RemoteTextJobStore()
+announcement_jobs = AudioJobStore()
 
 
 @app.get("/health")
@@ -85,8 +91,8 @@ def end_session(request: SessionEndRequest) -> dict[str, bool]:
     return {"ended": True}
 
 
-@app.post("/remote-text/jobs", response_model=RemoteTextJobCreated)
-def create_remote_text_job(request: RemoteTextJobRequest) -> RemoteTextJobCreated:
+@app.post("/announcement/jobs", response_model=AnnouncementJobCreated)
+def create_announcement_job(request: AnnouncementJobRequest) -> AnnouncementJobCreated:
     device = next(
         (device for device in load_devices() if device.device_id == request.device_id),
         None,
@@ -94,20 +100,40 @@ def create_remote_text_job(request: RemoteTextJobRequest) -> RemoteTextJobCreate
     if device is None:
         raise HTTPException(status_code=404, detail="device not found")
 
-    remote_text_config = load_remote_text_config()
-    wav = synthesize_remote_text_wav(request.text, remote_text_config)
-    pcm = normalize_wav_to_pcm_s16le(wav, remote_text_config.ffmpeg_binary)
-    frames = encode_raw_opus_frames(pcm)
-    if not frames:
-        raise HTTPException(status_code=500, detail="opus encoding produced no frames")
+    announcement_config = load_announcement_config()
+    try:
+        frames = synthesize_announcement_frames(
+            request.text,
+            announcement_config,
+        )
+    except AnnouncementDisabledError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except UnsupportedAnnouncementProviderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except MissingTtsApiKeyError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except TtsAuthenticationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except TtsTimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
+    except TtsEmptyAudioError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except TtsProviderError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    job = remote_text_jobs.create(
+    logger.info(
+        "announcement job synthesized provider=%s voice=%s frames=%d",
+        announcement_config.provider,
+        announcement_config.doubao.voice,
+        len(frames),
+    )
+    job = announcement_jobs.create(
         device_id=device.device_id,
         frames=frames,
         sample_rate=SAMPLE_RATE,
         frame_duration_ms=FRAME_DURATION_MS,
     )
-    return RemoteTextJobCreated(
+    return AnnouncementJobCreated(
         job_id=job.job_id,
         device_id=job.device_id,
         sample_rate=job.sample_rate,
@@ -117,13 +143,13 @@ def create_remote_text_job(request: RemoteTextJobRequest) -> RemoteTextJobCreate
     )
 
 
-@app.get("/remote-text/jobs/{job_id}/frames", response_model=RemoteTextFramesResponse)
-def get_remote_text_frames(
+@app.get("/announcement/jobs/{job_id}/frames", response_model=AnnouncementFramesResponse)
+def get_announcement_frames(
     job_id: str,
     offset: int = Query(0, ge=0),
     limit: int = Query(4, ge=1, le=16),
-) -> RemoteTextFramesResponse:
-    job = remote_text_jobs.get(job_id)
+) -> AnnouncementFramesResponse:
+    job = announcement_jobs.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
     total_frames = len(job.frames)
@@ -131,7 +157,7 @@ def get_remote_text_frames(
     next_offset = offset + len(page_frames)
     if next_offset >= total_frames:
         next_offset = None
-    return RemoteTextFramesResponse(
+    return AnnouncementFramesResponse(
         job_id=job.job_id,
         sample_rate=job.sample_rate,
         frame_duration_ms=job.frame_duration_ms,

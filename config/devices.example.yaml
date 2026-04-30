@@ -15,8 +15,13 @@ devices:
     ha_area_id: "bedroom"
     ha_device_id: ""
 
-remote_text:
-  provider: "wyoming"
-  wyoming_host: "core-piper"
-  wyoming_port: 10200
-  ffmpeg_binary: "ffmpeg"
+announcement:
+  enabled: true
+  provider: "doubao"
+  frame_format: "opus"
+  frame_duration_ms: 60
+  doubao:
+    api_key: ""
+    model: "doubao-tts"
+    voice: "zh_female_kailangjiejie_moon_bigtts"
+    sample_rate: 16000

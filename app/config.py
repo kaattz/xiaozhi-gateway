@@ -10,32 +10,73 @@ from app.models import DeviceMapping
 DEFAULT_CONFIG_PATH = Path(os.getenv("XIAOZHI_GATEWAY_CONFIG", "config/devices.yaml"))
 
 
-class RemoteTextConfig(BaseModel):
+class AnnouncementDoubaoConfig(BaseModel):
+    api_key: str = Field(
+        default_factory=lambda: os.getenv("XIAOZHI_DOUBAO_API_KEY", "")
+    )
+    model: str = Field(
+        default_factory=lambda: os.getenv("XIAOZHI_DOUBAO_MODEL", "doubao-tts")
+    )
+    voice: str = Field(
+        default_factory=lambda: os.getenv(
+            "XIAOZHI_DOUBAO_VOICE",
+            "zh_female_kailangjiejie_moon_bigtts",
+        )
+    )
+    sample_rate: int = Field(
+        default_factory=lambda: int(os.getenv("XIAOZHI_DOUBAO_SAMPLE_RATE", "16000"))
+    )
+
+
+class AnnouncementConfig(BaseModel):
+    enabled: bool = Field(
+        default_factory=lambda: parse_bool(
+            os.getenv("XIAOZHI_ANNOUNCEMENT_ENABLED", "true")
+        )
+    )
     provider: str = Field(
-        default_factory=lambda: os.getenv("XIAOZHI_REMOTE_TEXT_PROVIDER", "wyoming")
+        default_factory=lambda: os.getenv("XIAOZHI_ANNOUNCEMENT_PROVIDER", "doubao")
     )
-    wyoming_host: str = Field(
-        default_factory=lambda: os.getenv("XIAOZHI_WYOMING_HOST", "core-piper")
-    )
-    wyoming_port: int = Field(
-        default_factory=lambda: int(os.getenv("XIAOZHI_WYOMING_PORT", "10200"))
-    )
-    ffmpeg_binary: str = Field(
-        default_factory=lambda: os.getenv("XIAOZHI_FFMPEG_BINARY", "ffmpeg")
-    )
+    frame_format: str = "opus"
+    frame_duration_ms: int = 60
+    doubao: AnnouncementDoubaoConfig = Field(default_factory=AnnouncementDoubaoConfig)
 
 
-def apply_remote_text_env_overrides(values: dict) -> dict:
+def parse_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"invalid boolean value: {value}")
+
+
+def apply_announcement_env_overrides(values: dict) -> dict:
     merged = dict(values)
+    doubao = dict(merged.get("doubao") or {})
+
     env_fields = {
-        "XIAOZHI_REMOTE_TEXT_PROVIDER": ("provider", str),
-        "XIAOZHI_WYOMING_HOST": ("wyoming_host", str),
-        "XIAOZHI_WYOMING_PORT": ("wyoming_port", int),
-        "XIAOZHI_FFMPEG_BINARY": ("ffmpeg_binary", str),
+        "XIAOZHI_ANNOUNCEMENT_ENABLED": ("enabled", parse_bool),
+        "XIAOZHI_ANNOUNCEMENT_PROVIDER": ("provider", str),
     }
     for env_name, (field_name, cast) in env_fields.items():
         if env_name in os.environ:
             merged[field_name] = cast(os.environ[env_name])
+
+    doubao_env_fields = {
+        "XIAOZHI_DOUBAO_API_KEY": ("api_key", str),
+        "XIAOZHI_DOUBAO_MODEL": ("model", str),
+        "XIAOZHI_DOUBAO_VOICE": ("voice", str),
+        "XIAOZHI_DOUBAO_SAMPLE_RATE": ("sample_rate", int),
+    }
+    for env_name, (field_name, cast) in doubao_env_fields.items():
+        if env_name in os.environ:
+            doubao[field_name] = cast(os.environ[env_name])
+
+    if doubao:
+        merged["doubao"] = doubao
     return merged
 
 
@@ -66,12 +107,12 @@ def load_devices(config_path: Path = DEFAULT_CONFIG_PATH) -> list[DeviceMapping]
     return devices
 
 
-def load_remote_text_config(
+def load_announcement_config(
     config_path: Path = DEFAULT_CONFIG_PATH,
-) -> RemoteTextConfig:
+) -> AnnouncementConfig:
     if not config_path.exists():
-        return RemoteTextConfig()
+        return AnnouncementConfig()
 
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    remote_text = apply_remote_text_env_overrides(raw.get("remote_text") or {})
-    return RemoteTextConfig.model_validate(remote_text)
+    announcement = apply_announcement_env_overrides(raw.get("announcement") or {})
+    return AnnouncementConfig.model_validate(announcement)
