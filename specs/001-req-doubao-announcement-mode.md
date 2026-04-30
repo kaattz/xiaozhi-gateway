@@ -15,7 +15,7 @@
 | 外部输入输出 | 新增豆包 TTS 2.0 外部 API 调用 |
 | 接口契约 | 新增播报 job / frames API |
 | 跨模块 | gateway 生成音频，ESP32 本地播放 |
-| 配置和密钥 | add-on 配置需要保存 provider、voice、API key 等 |
+| 配置和密钥 | add-on 配置需要保存 provider、voice、AppID、Access Token 等 |
 | 长期扩展 | 后续要支持 Bailian 等 TTS provider |
 
 ## 用户故事
@@ -32,7 +32,7 @@
 |---|---|
 | REQ-1 | 新增独立的 `announcement` 播报模式，不复用旧的小智云输入语义。 |
 | REQ-2 | gateway 必须提供统一 TTS provider 抽象，第一期实现 `doubao`，预留 `bailian`、`piper` provider 名称但不实现。 |
-| REQ-3 | Doubao provider 必须在 gateway 侧调用，API key 不得下发到 ESP32。 |
+| REQ-3 | Doubao provider 必须在 gateway 侧调用，火山 AppID/Access Token 不得下发到 ESP32。 |
 | REQ-4 | Doubao provider 第一版输出统一转成 `16 kHz mono s16le PCM`，再按既有分页模式交付给 ESP32。 |
 | REQ-5 | gateway 必须提供播报 job 创建接口和分页取帧接口，响应体大小必须适配 ESP32 当前 HTTP 客户端，不允许单次返回大音频。 |
 | REQ-6 | HA 侧只暴露播报文本实体，例如 `text.<client_id>_bo_bao`，不再暴露 `text.<client_id>_zhi_ling`。 |
@@ -48,7 +48,7 @@
 | AC-1 | HA 调用播报实体后，gateway 创建 announcement job，ESP32 本地播放，不出现小智云理解/回复。 |
 | AC-2 | 使用 Doubao provider 时，gateway 日志能显示 provider、voice、音频时长/帧数，但不能打印 API key。 |
 | AC-3 | 播报短句和 10 秒以内文本时，ESP32 分页拉取成功，不触发 HTTP 8KB 队列卡死问题。 |
-| AC-4 | 未配置 Doubao API key 时，接口返回明确错误，ESP32 日志显示播报失败原因。 |
+| AC-4 | 未配置 Doubao AppID/Access Token 时，接口返回明确错误，ESP32 日志显示播报失败原因。 |
 | AC-5 | gateway 的 `/remote-text` API 已移除，ESP32 HA Discovery 不再发布 `zhi_ling` 文本实体。 |
 
 ## 非目标

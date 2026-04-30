@@ -50,12 +50,13 @@ https://github.com/kaattz/xiaozhi-gateway
 `xiaozhi-gateway` add-on 配置页里填写播报和设备信息：
 
 ```yaml
-addon_version: "0.1.5"
+addon_version: "0.1.6"
 announcement_enabled: true
 announcement_provider: doubao
-doubao_api_key: "你的火山边缘大模型网关API key"
-doubao_model: doubao-tts
-doubao_voice: zh_female_kailangjiejie_moon_bigtts
+doubao_app_id: "你的火山语音合成服务 AppID"
+doubao_access_key: "你的火山语音合成服务 Access Token"
+doubao_resource_id: volc.service_type.10029
+doubao_voice: zh_female_xiaohe_uranus_bigtts
 doubao_sample_rate: 16000
 devices:
   - key: living_room_xiaozhi
@@ -69,7 +70,7 @@ devices:
 
 保存配置并重启 add-on 后，启动脚本会自动生成 `/config/devices.yaml`。不要再手工改 add-on 配置目录里的 `devices.yaml`，下次重启会被配置页内容覆盖。
 
-如果配置页里看不到 `addon_version: "0.1.5"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
+如果配置页里看不到 `addon_version: "0.1.6"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
 
 `announcement` 播报模式默认配置：
 
@@ -80,9 +81,10 @@ announcement:
   frame_format: "opus"
   frame_duration_ms: 60
   doubao:
-    api_key: "你的火山边缘大模型网关API key"
-    model: "doubao-tts"
-    voice: "zh_female_kailangjiejie_moon_bigtts"
+    app_id: "你的火山语音合成服务 AppID"
+    access_key: "你的火山语音合成服务 Access Token"
+    resource_id: "volc.service_type.10029"
+    voice: "zh_female_xiaohe_uranus_bigtts"
     sample_rate: 16000
 ```
 
@@ -168,4 +170,4 @@ data:
   value: 现在房间温度较高，是否打开空调。
 ```
 
-第一版只实现 `doubao` provider；`bailian`、`piper` 名称预留，不做自动降级。
+`doubao` provider 使用火山 TTS2 V3 双向流式 WebSocket 正式接口。`doubao_voice` 填音色列表里的 voice_type，例如 `zh_female_xiaohe_uranus_bigtts`；如果要试 S2S-Omni 小何，可填 `zh_female_xiaohe_jupiter_bigtts`。`bailian`、`piper` 名称预留，不做自动降级。

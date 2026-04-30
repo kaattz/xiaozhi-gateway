@@ -21,7 +21,8 @@ announcement:
   frame_format: "opus"
   frame_duration_ms: 60
   doubao:
-    api_key: ""
-    model: "doubao-tts"
-    voice: "zh_female_kailangjiejie_moon_bigtts"
+    app_id: ""
+    access_key: ""
+    resource_id: "volc.service_type.10029"
+    voice: "zh_female_xiaohe_uranus_bigtts"
     sample_rate: 16000

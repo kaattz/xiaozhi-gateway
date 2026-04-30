@@ -8,9 +8,10 @@ def test_render_devices_config_from_addon_options():
         {
             "announcement_enabled": True,
             "announcement_provider": "doubao",
-            "doubao_api_key": "secret-key",
-            "doubao_model": "doubao-tts",
-            "doubao_voice": "zh_female_kailangjiejie_moon_bigtts",
+            "doubao_app_id": "app-id",
+            "doubao_access_key": "access-key",
+            "doubao_resource_id": "volc.service_type.10029",
+            "doubao_voice": "zh_female_xiaohe_jupiter_bigtts",
             "doubao_sample_rate": 16000,
             "devices": [
                 {
@@ -43,9 +44,10 @@ def test_render_devices_config_from_addon_options():
         "frame_format": "opus",
         "frame_duration_ms": 60,
         "doubao": {
-            "api_key": "secret-key",
-            "model": "doubao-tts",
-            "voice": "zh_female_kailangjiejie_moon_bigtts",
+            "app_id": "app-id",
+            "access_key": "access-key",
+            "resource_id": "volc.service_type.10029",
+            "voice": "zh_female_xiaohe_jupiter_bigtts",
             "sample_rate": 16000,
         },
     }

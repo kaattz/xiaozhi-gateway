@@ -54,7 +54,7 @@
 <action>
 
 - 新增 `AnnouncementConfig`。
-- add-on 配置页加入 `announcement_enabled`、`announcement_provider`、`doubao_api_key`、`doubao_model`、`doubao_voice`、`doubao_sample_rate`。
+- add-on 配置页加入 `announcement_enabled`、`announcement_provider`、`doubao_app_id`、`doubao_access_key`、`doubao_resource_id`、`doubao_voice`、`doubao_sample_rate`。
 - `app.addon_options` 将配置渲染到 `/config/devices.yaml` 的 `announcement` 节点。
 - 版本号升到下一版，例如 `0.1.3`。
 
@@ -85,8 +85,8 @@
 
 - 定义 provider 接口：输入文本，输出 `16 kHz mono s16le PCM`。
 - 新增 Doubao WebSocket 客户端。
-- 发送 `tts_session.update`、`input_text.append`、`input_text.done`。
-- 接收 `response.audio.delta`，base64 解码后合并 PCM。
+- 使用火山 TTS2 V3 二进制事件协议发送 `START_CONNECTION`、`START_SESSION`、`TASK_REQUEST`、`FINISH_SESSION`。
+- 接收 `TTS_RESPONSE` payload，合并 PCM。
 - 对空音频、鉴权失败、超时、非 PCM 输出显式报错。
 
 <verify>
@@ -181,7 +181,7 @@
 <action>
 
 - 说明 `zhi_ling` 已移除，HA 侧只保留 `bo_bao`。
-- 说明 Doubao API key、model、voice、sample_rate 配置。
+- 说明 Doubao AppID、Access Token、resource_id、voice、sample_rate 配置。
 - 说明 provider 扩展策略：第一期 Doubao，Bailian 预留。
 
 <verify>

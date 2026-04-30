@@ -1,5 +1,5 @@
-import base64
 import json
+import struct
 
 import pytest
 
@@ -10,11 +10,12 @@ from app.tts_providers.doubao import (
     DoubaoTtsTimeout,
     MissingDoubaoApiKeyError,
 )
+from app.tts_providers.doubao import Event, parse_tts2_frame
 
 
 class FakeWebSocket:
-    def __init__(self, messages: list[dict] | None = None, error: Exception | None = None):
-        self.sent: list[dict] = []
+    def __init__(self, messages: list[bytes] | None = None, error: Exception | None = None):
+        self.sent: list[bytes] = []
         self.closed = False
         self._messages = list(messages or [])
         self._error = error
@@ -25,23 +26,36 @@ class FakeWebSocket:
     def __exit__(self, exc_type, exc, tb):
         self.closed = True
 
-    def send(self, payload: str) -> None:
-        self.sent.append(json.loads(payload))
+    def send(self, payload: bytes) -> None:
+        self.sent.append(payload)
 
-    def recv(self, timeout: float | None = None) -> str:
+    def recv(self, timeout: float | None = None) -> bytes:
         if self._error is not None:
             raise self._error
         if not self._messages:
             raise AssertionError("unexpected recv")
-        return json.dumps(self._messages.pop(0))
+        return self._messages.pop(0)
 
 
-def test_doubao_provider_sends_realtime_events_and_returns_pcm():
-    audio = base64.b64encode(b"\x01\x00\x02\x00").decode("ascii")
+def make_frame(event: Event, payload: bytes = b"{}", session_id: str = "") -> bytes:
+    frame = bytearray([0x11, 0x14, 0x10, 0x00])
+    frame.extend(struct.pack(">i", int(event)))
+    if session_id:
+        session_id_bytes = session_id.encode()
+        frame.extend(struct.pack(">I", len(session_id_bytes)))
+        frame.extend(session_id_bytes)
+    frame.extend(struct.pack(">I", len(payload)))
+    frame.extend(payload)
+    return bytes(frame)
+
+
+def test_doubao_provider_sends_tts2_v3_events_and_returns_pcm():
     ws = FakeWebSocket(
         [
-            {"type": "response.audio.delta", "delta": audio},
-            {"type": "response.audio.done"},
+            make_frame(Event.CONNECTION_STARTED),
+            make_frame(Event.SESSION_STARTED, session_id="session-a"),
+            make_frame(Event.TTS_RESPONSE, b"\x01\x00\x02\x00", session_id="session-a"),
+            make_frame(Event.SESSION_FINISHED, session_id="session-a"),
         ]
     )
     captured = {}
@@ -52,60 +66,77 @@ def test_doubao_provider_sends_realtime_events_and_returns_pcm():
         return ws
 
     provider = DoubaoTtsProvider(
-        AnnouncementDoubaoConfig(api_key="secret", voice="voice-a"),
+        AnnouncementDoubaoConfig(
+            app_id="app-id",
+            access_key="access-key",
+            resource_id="volc.service_type.10029",
+            voice="voice-a",
+        ),
         connect_factory=connect_factory,
+        session_id_factory=lambda: "session-a",
+        connect_id_factory=lambda: "connect-a",
     )
 
     pcm = provider.synthesize_pcm("现在房间温度较高")
 
     assert pcm == b"\x01\x00\x02\x00"
-    assert captured["url"] == "wss://ai-gateway.vei.volces.com/v1/realtime?model=doubao-tts"
-    assert captured["kwargs"]["additional_headers"] == {"Authorization": "Bearer secret"}
-    assert [event["type"] for event in ws.sent] == [
-        "tts_session.update",
-        "input_text.append",
-        "input_text.done",
-    ]
-    assert ws.sent[0]["session"] == {
-        "voice": "voice-a",
-        "output_audio_format": "pcm",
-        "output_audio_sample_rate": 16000,
-        "text_to_speech": {"model": "doubao-tts"},
+    assert captured["url"] == "wss://openspeech.bytedance.com/api/v3/tts/bidirection"
+    assert captured["kwargs"]["additional_headers"] == {
+        "X-Api-App-Key": "app-id",
+        "X-Api-Access-Key": "access-key",
+        "X-Api-Resource-Id": "volc.service_type.10029",
+        "X-Api-Connect-Id": "connect-a",
     }
-    assert ws.sent[1]["delta"] == "现在房间温度较高"
+    sent_frames = [parse_tts2_frame(payload) for payload in ws.sent]
+    assert [frame.event for frame in sent_frames] == [
+        Event.START_CONNECTION,
+        Event.START_SESSION,
+        Event.TASK_REQUEST,
+        Event.FINISH_SESSION,
+        Event.FINISH_CONNECTION,
+    ]
+    assert json.loads(sent_frames[1].payload.decode())["req_params"] == {
+        "speaker": "voice-a",
+        "audio_params": {
+            "format": "pcm",
+            "sample_rate": 16000,
+        },
+    }
+    assert json.loads(sent_frames[2].payload.decode())["req_params"]["text"] == "现在房间温度较高"
     assert ws.closed is True
 
 
-def test_doubao_provider_requires_api_key():
-    provider = DoubaoTtsProvider(AnnouncementDoubaoConfig(api_key=""))
+def test_doubao_provider_requires_v3_credentials():
+    provider = DoubaoTtsProvider(AnnouncementDoubaoConfig(app_id="", access_key=""))
 
-    with pytest.raises(MissingDoubaoApiKeyError, match="api key"):
+    with pytest.raises(MissingDoubaoApiKeyError, match="app_id/access_key"):
         provider.synthesize_pcm("打开空调")
 
 
 def test_doubao_provider_maps_authentication_error_without_leaking_key():
     ws = FakeWebSocket(
         [
-            {
-                "type": "error",
-                "error": {"code": "401", "message": "unauthorized"},
-            }
+            make_frame(
+                Event.CONNECTION_FAILED,
+                json.dumps({"code": 401, "message": "unauthorized"}).encode(),
+            )
         ]
     )
     provider = DoubaoTtsProvider(
-        AnnouncementDoubaoConfig(api_key="secret"),
+        AnnouncementDoubaoConfig(app_id="app-id", access_key="access-key"),
         connect_factory=lambda url, **kwargs: ws,
+        connect_id_factory=lambda: "connect-a",
     )
 
     with pytest.raises(DoubaoAuthenticationError) as error:
         provider.synthesize_pcm("打开空调")
 
-    assert "secret" not in str(error.value)
+    assert "access-key" not in str(error.value)
 
 
 def test_doubao_provider_maps_timeout():
     provider = DoubaoTtsProvider(
-        AnnouncementDoubaoConfig(api_key="secret"),
+        AnnouncementDoubaoConfig(app_id="app-id", access_key="access-key"),
         connect_factory=lambda url, **kwargs: FakeWebSocket(error=TimeoutError()),
     )
 

@@ -20,7 +20,7 @@
 
 | Provider | 依据 |
 |---|---|
-| Doubao | 火山 Realtime TTS 文档：WebSocket `wss://ai-gateway.vei.volces.com/v1/realtime?model=doubao-tts`，通过 `tts_session.update` 设置 `voice`、`output_audio_format=pcm`、`output_audio_sample_rate=16000`，发送 `input_text.append` / `input_text.done`，接收 `response.audio.delta` base64 音频。文档链接：https://www.volcengine.com/docs/6893/1527770 |
+| Doubao | 火山 TTS2 V3 双向流式 WebSocket：`wss://openspeech.bytedance.com/api/v3/tts/bidirection`。握手头使用 `X-Api-App-Key`、`X-Api-Access-Key`、`X-Api-Resource-Id`，音色使用 `speaker`/`voice_type`，服务端以 `TTS_RESPONSE` 事件返回音频 payload。文档链接：https://www.volcengine.com/docs/6561/1329505 |
 | Bailian | 第一版只预留 provider 名称和接口，不绑定具体 API。 |
 
 ## 推荐架构
@@ -46,7 +46,7 @@ HA text.<client_id>_bo_bao
 |---|---|
 | `app/announcement_config.py` 或扩展 `app/config.py` | 读取 `announcement` 配置。 |
 | `app/tts_providers/base.py` | 定义 `TtsProvider.synthesize_pcm(text, config) -> bytes`。 |
-| `app/tts_providers/doubao.py` | 调 Doubao Realtime TTS WebSocket，输出 PCM。 |
+| `app/tts_providers/doubao.py` | 调火山 TTS2 V3 WebSocket，输出 PCM。 |
 | `app/announcement_audio.py` | 调 provider、校验 PCM、编码 frames。 |
 | `app/audio_jobs.py` | 通用音频 job store；当前供 announcement 使用。 |
 
@@ -78,9 +78,10 @@ Add-on 配置页新增：
 ```yaml
 announcement_enabled: true
 announcement_provider: doubao
-doubao_api_key: ""
-doubao_model: doubao-tts
-doubao_voice: zh_female_kailangjiejie_moon_bigtts
+doubao_app_id: ""
+doubao_access_key: ""
+doubao_resource_id: volc.service_type.10029
+doubao_voice: zh_female_xiaohe_uranus_bigtts
 doubao_sample_rate: 16000
 ```
 
@@ -93,9 +94,10 @@ announcement:
   frame_format: opus
   frame_duration_ms: 60
   doubao:
-    api_key: "..."
-    model: doubao-tts
-    voice: zh_female_kailangjiejie_moon_bigtts
+    app_id: "..."
+    access_key: "..."
+    resource_id: volc.service_type.10029
+    voice: zh_female_xiaohe_uranus_bigtts
     sample_rate: 16000
 ```
 
@@ -103,7 +105,7 @@ announcement:
 
 | 规则 | 说明 |
 |---|---|
-| 不打印 | 日志不能输出 `doubao_api_key`。 |
+| 不打印 | 日志不能输出 `doubao_access_key`。 |
 | 不下发 | API 响应不能包含 key。 |
 | 不进 ESP32 | ESP32 只知道 gateway URL。 |
 

@@ -12,22 +12,25 @@ def read(path: str) -> str:
 def test_haos_addon_metadata_exposes_gateway_port_and_announcement_options():
     config = yaml.safe_load(read("config.yaml"))
 
-    assert config["version"] == "0.1.5"
+    assert config["version"] == "0.1.6"
     assert config["slug"] == "xiaozhi_gateway"
     assert config["ports"]["8125/tcp"] == 8125
-    assert config["options"]["addon_version"] == "0.1.5"
+    assert config["options"]["addon_version"] == "0.1.6"
     assert config["schema"]["addon_version"] == "str"
     assert "piper_host" not in config["options"]
     assert "piper_port" not in config["options"]
     assert config["options"]["announcement_enabled"] is True
     assert config["options"]["announcement_provider"] == "doubao"
-    assert config["options"]["doubao_api_key"] == ""
-    assert config["options"]["doubao_model"] == "doubao-tts"
+    assert config["options"]["doubao_app_id"] == ""
+    assert config["options"]["doubao_access_key"] == ""
+    assert config["options"]["doubao_resource_id"] == "volc.service_type.10029"
     assert config["options"]["doubao_voice"]
     assert config["options"]["doubao_sample_rate"] == 16000
     assert config["schema"]["announcement_enabled"] == "bool"
     assert config["schema"]["announcement_provider"] == "str"
-    assert config["schema"]["doubao_api_key"] == "password?"
+    assert config["schema"]["doubao_app_id"] == "str"
+    assert config["schema"]["doubao_access_key"] == "password?"
+    assert config["schema"]["doubao_resource_id"] == "str"
     assert config["options"]["devices"][0]["key"] == "living_room_xiaozhi"
     assert config["schema"]["devices"][0]["device_id"] == "str"
     assert config["map"][0]["type"] == "addon_config"

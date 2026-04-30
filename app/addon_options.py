@@ -40,11 +40,14 @@ def render_devices_config(options: dict[str, Any]) -> str:
             "frame_format": "opus",
             "frame_duration_ms": 60,
             "doubao": {
-                "api_key": str(options.get("doubao_api_key") or "").strip(),
-                "model": str(options.get("doubao_model") or "doubao-tts").strip(),
+                "app_id": str(options.get("doubao_app_id") or "").strip(),
+                "access_key": str(options.get("doubao_access_key") or "").strip(),
+                "resource_id": str(
+                    options.get("doubao_resource_id") or "volc.service_type.10029"
+                ).strip(),
                 "voice": str(
                     options.get("doubao_voice")
-                    or "zh_female_kailangjiejie_moon_bigtts"
+                    or "zh_female_xiaohe_uranus_bigtts"
                 ).strip(),
                 "sample_rate": int(options.get("doubao_sample_rate") or 16000),
             },

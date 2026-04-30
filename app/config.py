@@ -11,16 +11,22 @@ DEFAULT_CONFIG_PATH = Path(os.getenv("XIAOZHI_GATEWAY_CONFIG", "config/devices.y
 
 
 class AnnouncementDoubaoConfig(BaseModel):
-    api_key: str = Field(
-        default_factory=lambda: os.getenv("XIAOZHI_DOUBAO_API_KEY", "")
+    app_id: str = Field(
+        default_factory=lambda: os.getenv("XIAOZHI_DOUBAO_APP_ID", "")
     )
-    model: str = Field(
-        default_factory=lambda: os.getenv("XIAOZHI_DOUBAO_MODEL", "doubao-tts")
+    access_key: str = Field(
+        default_factory=lambda: os.getenv("XIAOZHI_DOUBAO_ACCESS_KEY", "")
+    )
+    resource_id: str = Field(
+        default_factory=lambda: os.getenv(
+            "XIAOZHI_DOUBAO_RESOURCE_ID",
+            "volc.service_type.10029",
+        )
     )
     voice: str = Field(
         default_factory=lambda: os.getenv(
             "XIAOZHI_DOUBAO_VOICE",
-            "zh_female_kailangjiejie_moon_bigtts",
+            "zh_female_xiaohe_uranus_bigtts",
         )
     )
     sample_rate: int = Field(
@@ -66,8 +72,9 @@ def apply_announcement_env_overrides(values: dict) -> dict:
             merged[field_name] = cast(os.environ[env_name])
 
     doubao_env_fields = {
-        "XIAOZHI_DOUBAO_API_KEY": ("api_key", str),
-        "XIAOZHI_DOUBAO_MODEL": ("model", str),
+        "XIAOZHI_DOUBAO_APP_ID": ("app_id", str),
+        "XIAOZHI_DOUBAO_ACCESS_KEY": ("access_key", str),
+        "XIAOZHI_DOUBAO_RESOURCE_ID": ("resource_id", str),
         "XIAOZHI_DOUBAO_VOICE": ("voice", str),
         "XIAOZHI_DOUBAO_SAMPLE_RATE": ("sample_rate", int),
     }
