@@ -153,21 +153,45 @@ http://NAS_IP:8125
 | `GET /active-context` | HA MCP 获取当前房间上下文 |
 | `POST /announcement/jobs` | 把播报文本生成本地播放音频任务 |
 | `GET /announcement/jobs/{job_id}/frames` | 分页获取播报任务的 base64 Opus 帧 |
+| `POST /pending-confirmations` | HA 创建一个待用户确认的问题 |
+| `GET /pending-confirmations/active` | MCP 查询当前设备/房间的待确认问题 |
+| `POST /pending-confirmations/{confirmation_id}/resolve` | MCP 把用户回答解析为 yes/no 后确认或拒绝 |
 
 ## Announcement Audio
 
-这个功能用于播报固定文字。HA 写入 `text.<client_id>_bo_bao` 后，ESP32 从 gateway 拉取音频并本地播放，不上传到小智云，也不让小智云改写内容。
+这个功能用于播报固定文字。HA 写入 `text.<client_id>_announcement` 后，ESP32 从 gateway 拉取音频并本地播放，不上传到小智云，也不让小智云改写内容。
 
-`text.<client_id>_zhi_ling` 入口已移除，避免把文本误当作小智云对话输入。现在 HA 侧只保留播报入口 `text.<client_id>_bo_bao`。
+`text.<client_id>_zhi_ling` 入口已移除，避免把文本误当作小智云对话输入。现在 HA 侧有两个入口：
+
+| 实体 | 行为 |
+|---|---|
+| `text.<client_id>_announcement` | 普通播报，只本地播放，不开麦。 |
+| `text.<client_id>_question` | 询问播报，本地播放后短时进入 listening，等待用户回答。 |
 
 调用示例：
 
 ```yaml
 action: text.set_value
 target:
-  entity_id: text.livingroom_xiaozhi_bo_bao
+  entity_id: text.livingroom_xiaozhi_announcement
 data:
-  value: 现在房间温度较高，是否打开空调。
+  value: 晚饭好了。
 ```
 
 `doubao` provider 使用火山 TTS2 V3 双向流式 WebSocket 正式接口。`doubao_voice` 填音色列表里的 voice_type，例如 `zh_female_xiaohe_uranus_bigtts`；如果要试 S2S-Omni 小何，可填 `zh_female_xiaohe_jupiter_bigtts`。`bailian`、`piper` 名称预留，不做自动降级。
+
+## Pending Confirmation
+
+Pending confirmation 用于 HA 自动化先询问，再根据用户回答执行动作。小智云仍然只配置现有 `ha-mcp-for-xiaozhi` 这一个 MCP 接入点；gateway 不直接执行 HA 服务，只保存待确认状态。
+
+推荐流程：
+
+1. HA 调 `POST /pending-confirmations` 创建待确认问题。
+2. HA 写入 `text.<client_id>_question`，让 ESP32 播放问题。
+3. ESP32 播放完成后短时进入 listening。
+4. 用户回答“好的/不用”。
+5. 小智云通过 `ha-mcp-for-xiaozhi` 调 `ResolvePendingConfirmation(decision=yes/no)`。
+6. `ha-mcp-for-xiaozhi` 触发 HA 事件 `xiaozhi_gateway_pending_confirmation_resolved`。
+7. HA 自动化按事件里的 `confirmation_id` 和 `decision` 决定是否执行动作。
+
+普通播报必须继续使用 `text.<client_id>_announcement`，不会自动开麦。

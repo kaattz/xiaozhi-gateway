@@ -23,8 +23,20 @@ from app.models import (
     AnnouncementJobCreated,
     AnnouncementJobRequest,
     DevicesResponse,
+    PendingConfirmationCreateRequest,
+    PendingConfirmationCreated,
+    PendingConfirmationResolveRequest,
+    PendingConfirmationResolved,
     SessionEndRequest,
     WakeDetectedRequest,
+)
+from app.pending_confirmations import (
+    PendingConfirmation,
+    PendingConfirmationStore,
+    PendingConflictError,
+    PendingMismatchError,
+    PendingNotFoundError,
+    PendingResolvedError,
 )
 from app.session_store import SessionStore
 
@@ -32,6 +44,7 @@ app = FastAPI(title="Xiaozhi Gateway")
 logger = logging.getLogger(__name__)
 session_store = SessionStore()
 announcement_jobs = AudioJobStore()
+pending_confirmations = PendingConfirmationStore()
 
 
 @app.get("/health")
@@ -91,12 +104,108 @@ def end_session(request: SessionEndRequest) -> dict[str, bool]:
     return {"ended": True}
 
 
+def _find_device(device_id: str):
+    return next((device for device in load_devices() if device.device_id == device_id), None)
+
+
+def _pending_created_response(item: PendingConfirmation) -> PendingConfirmationCreated:
+    return PendingConfirmationCreated(
+        confirmation_id=item.confirmation_id,
+        device_id=item.device_id,
+        client_id=item.client_id,
+        room_id=item.room_id,
+        prompt=item.prompt,
+        status=item.status,
+        expires_at=item.expires_at,
+        metadata=item.metadata,
+    )
+
+
+@app.post("/pending-confirmations", response_model=PendingConfirmationCreated)
+def create_pending_confirmation(
+    request: PendingConfirmationCreateRequest,
+) -> PendingConfirmationCreated:
+    device = _find_device(request.device_id)
+    if device is None:
+        raise HTTPException(status_code=404, detail="device not found")
+    if request.room_id != device.room_id:
+        raise HTTPException(status_code=409, detail="room_mismatch")
+
+    try:
+        item = pending_confirmations.create(
+            device_id=device.device_id,
+            client_id=request.client_id or device.client_id,
+            room_id=request.room_id,
+            prompt=request.prompt,
+            ttl_seconds=request.ttl_seconds,
+            metadata=request.metadata,
+        )
+    except PendingConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return _pending_created_response(item)
+
+
+@app.get("/pending-confirmations/active")
+def get_active_pending_confirmation(
+    device_id: str | None = None,
+    room_id: str | None = None,
+) -> dict:
+    item = pending_confirmations.get_active(device_id=device_id, room_id=room_id)
+    if item is None:
+        latest = pending_confirmations.get_latest(device_id=device_id, room_id=room_id)
+        if latest is not None and latest.status == "expired":
+            return {
+                "active": False,
+                "status": "expired",
+                "confirmation_id": latest.confirmation_id,
+            }
+        return {"active": False, "status": "no_pending_confirmation"}
+    return {
+        "active": True,
+        "confirmation_id": item.confirmation_id,
+        "device_id": item.device_id,
+        "client_id": item.client_id,
+        "room_id": item.room_id,
+        "prompt": item.prompt,
+        "expires_at": item.expires_at,
+        "metadata": item.metadata,
+    }
+
+
+@app.post(
+    "/pending-confirmations/{confirmation_id}/resolve",
+    response_model=PendingConfirmationResolved,
+)
+def resolve_pending_confirmation(
+    confirmation_id: str,
+    request: PendingConfirmationResolveRequest,
+) -> PendingConfirmationResolved:
+    try:
+        item = pending_confirmations.resolve(
+            confirmation_id,
+            decision=request.decision,
+            device_id=request.device_id,
+            room_id=request.room_id,
+        )
+    except PendingNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (PendingMismatchError, PendingResolvedError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return PendingConfirmationResolved(
+        confirmation_id=item.confirmation_id,
+        status=item.status,
+        decision=item.decision or request.decision,
+        device_id=item.device_id,
+        room_id=item.room_id,
+        metadata=item.metadata,
+    )
+
+
 @app.post("/announcement/jobs", response_model=AnnouncementJobCreated)
 def create_announcement_job(request: AnnouncementJobRequest) -> AnnouncementJobCreated:
-    device = next(
-        (device for device in load_devices() if device.device_id == request.device_id),
-        None,
-    )
+    device = _find_device(request.device_id)
     if device is None:
         raise HTTPException(status_code=404, detail="device not found")
 
@@ -122,9 +231,11 @@ def create_announcement_job(request: AnnouncementJobRequest) -> AnnouncementJobC
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     logger.info(
-        "announcement job synthesized provider=%s voice=%s frames=%d",
+        "announcement job synthesized provider=%s voice=%s mode=%s device_id=%s frames=%d",
         announcement_config.provider,
         announcement_config.doubao.voice,
+        request.mode,
+        device.device_id,
         len(frames),
     )
     job = announcement_jobs.create(
@@ -133,6 +244,9 @@ def create_announcement_job(request: AnnouncementJobRequest) -> AnnouncementJobC
         sample_rate=SAMPLE_RATE,
         frame_duration_ms=FRAME_DURATION_MS,
     )
+    listen_after_playback = request.mode == "question"
+    if listen_after_playback:
+        session_store.set(device)
     return AnnouncementJobCreated(
         job_id=job.job_id,
         device_id=job.device_id,
@@ -140,6 +254,8 @@ def create_announcement_job(request: AnnouncementJobRequest) -> AnnouncementJobC
         frame_duration_ms=job.frame_duration_ms,
         frame_count=len(job.frames),
         expires_at=job.expires_at,
+        listen_after_playback=listen_after_playback,
+        listen_timeout_seconds=8 if listen_after_playback else 0,
     )
 
 

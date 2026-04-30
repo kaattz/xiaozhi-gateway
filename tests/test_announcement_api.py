@@ -34,6 +34,8 @@ def test_announcement_creates_and_fetches_frames(monkeypatch):
     assert body["sample_rate"] == 16000
     assert body["frame_duration_ms"] == 60
     assert body["frame_count"] == 5
+    assert body["listen_after_playback"] is False
+    assert body["listen_timeout_seconds"] == 0
 
     first = client.get(f"/announcement/jobs/{body['job_id']}/frames?offset=0&limit=4")
     assert first.status_code == 200
@@ -46,6 +48,35 @@ def test_announcement_creates_and_fetches_frames(monkeypatch):
     assert last.status_code == 200
     assert last.json()["frames_base64"] == ["Zml2ZQ=="]
     assert last.json()["next_offset"] is None
+
+
+def test_question_announcement_refreshes_active_context_and_returns_listen_window(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "synthesize_announcement_frames",
+        lambda text, config: [b"one"],
+    )
+    client.delete("/active-context")
+
+    created = client.post(
+        "/announcement/jobs",
+        json={
+            "device_id": "aa:bb:cc:dd:ee:ff",
+            "client_id": "xiaozhi-living-room",
+            "text": "现在房间温度较高，是否打开空调。",
+            "mode": "question",
+        },
+    )
+
+    assert created.status_code == 200
+    assert created.json()["listen_after_playback"] is True
+    assert created.json()["listen_timeout_seconds"] == 8
+
+    active_context = client.get("/active-context")
+    assert active_context.status_code == 200
+    assert active_context.json()["active"] is True
+    assert active_context.json()["device_id"] == "aa:bb:cc:dd:ee:ff"
+    assert active_context.json()["room_id"] == "living_room"
 
 
 def test_announcement_rejects_unknown_device():
