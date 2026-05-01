@@ -53,6 +53,9 @@ def render_devices_config(options: dict[str, Any]) -> str:
                     or "zh_female_xiaohe_uranus_bigtts"
                 ).strip(),
                 "sample_rate": int(options.get("doubao_sample_rate") or 16000),
+                "speech_speed": str(
+                    options.get("doubao_speech_speed") or "正常"
+                ).strip(),
             },
         },
     }

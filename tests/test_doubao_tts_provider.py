@@ -147,10 +147,40 @@ def test_doubao_provider_sends_tts2_v3_events_and_returns_pcm():
         "audio_params": {
             "format": "pcm",
             "sample_rate": 16000,
+            "speech_rate": 0,
         },
     }
     assert json.loads(sent_frames[2].payload.decode())["req_params"]["text"] == "现在房间温度较高"
     assert ws.closed is True
+
+
+def test_doubao_provider_maps_fast_speech_speed_to_tts2_speech_rate():
+    ws = FakeWebSocket(
+        [
+            make_server_connection_frame(Event.CONNECTION_STARTED),
+            make_frame(Event.SESSION_STARTED, session_id="session-a", message_type=0x9),
+            make_frame(Event.TTS_RESPONSE, b"\x01\x00", session_id="session-a", message_type=0xB),
+            make_frame(Event.SESSION_FINISHED, session_id="session-a", message_type=0x9),
+        ]
+    )
+    provider = DoubaoTtsProvider(
+        AnnouncementDoubaoConfig(
+            app_id="app-id",
+            access_key="access-key",
+            voice="voice-a",
+            speech_speed="快速",
+        ),
+        connect_factory=lambda url, **kwargs: ws,
+        session_id_factory=lambda: "session-a",
+        connect_id_factory=lambda: "connect-a",
+    )
+
+    provider.synthesize_pcm("现在房间温度较高")
+
+    start_session = parse_tts2_frame(ws.sent[1])
+    assert json.loads(start_session.payload.decode())["req_params"]["audio_params"][
+        "speech_rate"
+    ] == 20
 
 
 def test_doubao_provider_requires_v3_credentials():

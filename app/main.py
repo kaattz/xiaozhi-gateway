@@ -107,6 +107,8 @@ def _announcement_status() -> dict:
         ),
         "voice": config.doubao.voice,
         "sample_rate": config.doubao.sample_rate,
+        "speech_speed": config.doubao.speech_speed,
+        "speech_rate": config.doubao.speech_rate,
         "resource_id": config.doubao.resource_id,
     }
 

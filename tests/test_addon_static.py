@@ -26,11 +26,13 @@ def test_haos_addon_metadata_exposes_gateway_port_and_announcement_options():
     assert config["options"]["doubao_resource_id"] == "seed-tts-2.0"
     assert config["options"]["doubao_voice"]
     assert config["options"]["doubao_sample_rate"] == 16000
+    assert config["options"]["doubao_speech_speed"] == "正常"
     assert config["schema"]["announcement_enabled"] == "bool"
     assert config["schema"]["announcement_provider"] == "str"
     assert config["schema"]["doubao_app_id"] == "str"
     assert config["schema"]["doubao_access_key"] == "password?"
     assert config["schema"]["doubao_resource_id"] == "str"
+    assert config["schema"]["doubao_speech_speed"] == "list(正常|慢速|快速)"
     assert config["options"]["devices"][0]["key"] == "living_room_xiaozhi"
     assert config["schema"]["devices"][0]["device_id"] == "str"
     assert config["map"][0]["type"] == "addon_config"

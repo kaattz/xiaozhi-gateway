@@ -247,6 +247,7 @@ class DoubaoTtsProvider:
                     "audio_params": {
                         "format": "pcm",
                         "sample_rate": self._config.sample_rate,
+                        "speech_rate": self._config.speech_rate,
                     },
                 },
             },

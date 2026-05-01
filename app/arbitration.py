@@ -209,6 +209,11 @@ def decide_wake(
         WakeCandidate(device=device, wake_rms_dbfs=request.wake_rms_dbfs),
     )
     if decision["type"] == "allow_session":
+        # Clear stale sessions from other devices in the same wake group
+        # to prevent multiple_active_contexts when only one device is active.
+        for group_device in group_devices:
+            if group_device.device_id != device.device_id:
+                session_store.clear(group_device.device_id)
         context = session_store.set(device)
         logger.info(
             "wake allowed device_id=%s group=%s wake_rms_dbfs=%.2f adjusted=%.2f",

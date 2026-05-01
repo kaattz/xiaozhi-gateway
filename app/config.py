@@ -1,13 +1,19 @@
 import os
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import yaml
 
 from app.models import DeviceMapping
 
 
 DEFAULT_CONFIG_PATH = Path(os.getenv("XIAOZHI_GATEWAY_CONFIG", "config/devices.yaml"))
+DEFAULT_DOUBAO_SPEECH_SPEED = "正常"
+DOUBAO_SPEECH_RATE_BY_SPEED = {
+    "慢速": -20,
+    "正常": 0,
+    "快速": 20,
+}
 
 
 class AnnouncementDoubaoConfig(BaseModel):
@@ -32,6 +38,25 @@ class AnnouncementDoubaoConfig(BaseModel):
     sample_rate: int = Field(
         default_factory=lambda: int(os.getenv("XIAOZHI_DOUBAO_SAMPLE_RATE", "16000"))
     )
+    speech_speed: str = Field(
+        default_factory=lambda: os.getenv(
+            "XIAOZHI_DOUBAO_SPEECH_SPEED",
+            DEFAULT_DOUBAO_SPEECH_SPEED,
+        )
+    )
+
+    @field_validator("speech_speed")
+    @classmethod
+    def validate_speech_speed(cls, value: str) -> str:
+        value = str(value).strip()
+        if value not in DOUBAO_SPEECH_RATE_BY_SPEED:
+            choices = ", ".join(DOUBAO_SPEECH_RATE_BY_SPEED)
+            raise ValueError(f"doubao speech_speed must be one of: {choices}")
+        return value
+
+    @property
+    def speech_rate(self) -> int:
+        return DOUBAO_SPEECH_RATE_BY_SPEED[self.speech_speed]
 
 
 class AnnouncementConfig(BaseModel):
@@ -77,6 +102,7 @@ def apply_announcement_env_overrides(values: dict) -> dict:
         "XIAOZHI_DOUBAO_RESOURCE_ID": ("resource_id", str),
         "XIAOZHI_DOUBAO_VOICE": ("voice", str),
         "XIAOZHI_DOUBAO_SAMPLE_RATE": ("sample_rate", int),
+        "XIAOZHI_DOUBAO_SPEECH_SPEED": ("speech_speed", str),
     }
     for env_name, (field_name, cast) in doubao_env_fields.items():
         if env_name in os.environ:

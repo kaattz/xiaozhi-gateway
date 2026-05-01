@@ -13,6 +13,7 @@ def test_render_devices_config_from_addon_options():
             "doubao_resource_id": "seed-tts-2.0",
             "doubao_voice": "zh_female_xiaohe_jupiter_bigtts",
             "doubao_sample_rate": 16000,
+            "doubao_speech_speed": "快速",
             "devices": [
                 {
                     "key": "living_room_xiaozhi",
@@ -55,6 +56,7 @@ def test_render_devices_config_from_addon_options():
             "resource_id": "seed-tts-2.0",
             "voice": "zh_female_xiaohe_jupiter_bigtts",
             "sample_rate": 16000,
+            "speech_speed": "快速",
         },
     }
 

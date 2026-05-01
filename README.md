@@ -58,6 +58,7 @@ doubao_access_key: "你的火山语音合成服务 Access Token"
 doubao_resource_id: seed-tts-2.0
 doubao_voice: zh_female_xiaohe_uranus_bigtts
 doubao_sample_rate: 16000
+doubao_speech_speed: 正常
 devices:
   - key: living_room_xiaozhi
     device_id: "你的ESP32_WIFI_MAC"
@@ -89,6 +90,7 @@ announcement:
     resource_id: "seed-tts-2.0"
     voice: "zh_female_xiaohe_uranus_bigtts"
     sample_rate: 16000
+    speech_speed: "正常"
 ```
 
 ESP32 端网关地址配置为：
@@ -214,7 +216,7 @@ data:
   value: 晚饭好了。
 ```
 
-`doubao` provider 使用火山 TTS2 V3 双向流式 WebSocket 正式接口。`doubao_voice` 填音色列表里的 voice_type，例如 `zh_female_xiaohe_uranus_bigtts`；这个 2.0 音色要配 `doubao_resource_id: seed-tts-2.0`。如果要试 S2S-Omni 小何，可填 `zh_female_xiaohe_jupiter_bigtts`，但要同步确认该音色对应的 resource ID。`bailian`、`piper` 名称预留，不做自动降级。
+`doubao` provider 使用火山 TTS2 V3 双向流式 WebSocket 正式接口。`doubao_voice` 填音色列表里的 voice_type，例如 `zh_female_xiaohe_uranus_bigtts`；这个 2.0 音色要配 `doubao_resource_id: seed-tts-2.0`。`doubao_speech_speed` 可选 `正常`、`慢速`、`快速`，分别映射到 TTS2 的 `speech_rate` 0、-20、20。如果要试 S2S-Omni 小何，可填 `zh_female_xiaohe_jupiter_bigtts`，但要同步确认该音色对应的 resource ID。`bailian`、`piper` 名称预留，不做自动降级。
 
 排查 TTS：
 

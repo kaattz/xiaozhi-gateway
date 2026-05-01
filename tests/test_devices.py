@@ -121,6 +121,8 @@ def test_announcement_config_uses_defaults_when_missing(tmp_path):
     assert announcement.doubao.resource_id == "seed-tts-2.0"
     assert announcement.doubao.voice == "zh_female_xiaohe_uranus_bigtts"
     assert announcement.doubao.sample_rate == 16000
+    assert announcement.doubao.speech_speed == "正常"
+    assert announcement.doubao.speech_rate == 0
 
 
 def test_announcement_config_loads_yaml_values(tmp_path):
@@ -139,6 +141,7 @@ announcement:
     resource_id: "seed-tts-2.0"
     voice: "voice-id"
     sample_rate: 16000
+    speech_speed: "慢速"
 """,
         encoding="utf-8",
     )
@@ -151,6 +154,8 @@ announcement:
     assert announcement.doubao.access_key == "access-key"
     assert announcement.doubao.resource_id == "seed-tts-2.0"
     assert announcement.doubao.voice == "voice-id"
+    assert announcement.doubao.speech_speed == "慢速"
+    assert announcement.doubao.speech_rate == -20
 
 
 def test_announcement_config_env_overrides_yaml_for_secret(monkeypatch, tmp_path):
@@ -177,6 +182,7 @@ announcement:
     monkeypatch.setenv("XIAOZHI_DOUBAO_RESOURCE_ID", "seed-tts-2.0")
     monkeypatch.setenv("XIAOZHI_DOUBAO_VOICE", "new-voice")
     monkeypatch.setenv("XIAOZHI_DOUBAO_SAMPLE_RATE", "16000")
+    monkeypatch.setenv("XIAOZHI_DOUBAO_SPEECH_SPEED", "快速")
 
     announcement = load_announcement_config(config)
 
@@ -187,3 +193,5 @@ announcement:
     assert announcement.doubao.resource_id == "seed-tts-2.0"
     assert announcement.doubao.voice == "new-voice"
     assert announcement.doubao.sample_rate == 16000
+    assert announcement.doubao.speech_speed == "快速"
+    assert announcement.doubao.speech_rate == 20

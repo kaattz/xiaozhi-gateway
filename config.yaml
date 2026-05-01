@@ -1,5 +1,5 @@
 name: Xiaozhi Gateway
-version: "0.1.13"
+version: "0.1.14"
 slug: xiaozhi_gateway
 description: Xiaozhi Home Assistant gateway
 arch:
@@ -14,7 +14,7 @@ map:
   - type: addon_config
     read_only: false
 options:
-  addon_version: "0.1.13"
+  addon_version: "0.1.14"
   announcement_enabled: true
   announcement_provider: doubao
   doubao_app_id: ""
@@ -22,6 +22,7 @@ options:
   doubao_resource_id: seed-tts-2.0
   doubao_voice: zh_female_xiaohe_uranus_bigtts
   doubao_sample_rate: 16000
+  doubao_speech_speed: 正常
   devices:
     - key: living_room_xiaozhi
       device_id: "aa:bb:cc:dd:ee:ff"
@@ -42,6 +43,7 @@ schema:
   doubao_resource_id: str
   doubao_voice: str
   doubao_sample_rate: int
+  doubao_speech_speed: list(正常|慢速|快速)
   devices:
     - key: str
       device_id: str

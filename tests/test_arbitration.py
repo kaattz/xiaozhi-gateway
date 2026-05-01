@@ -277,3 +277,67 @@ def test_single_device_group_allows_without_wait(tmp_path):
     )
 
     assert decision["type"] == "allow_session"
+
+
+def test_same_group_winner_clears_stale_session_from_other_device(tmp_path):
+    """Regression: if device A in a group has an active session and device B
+    later wakes up alone (A doesn't wake), B wins arbitration. B's session
+    should be the only active session; A's stale session must be cleared so
+    that GET /active-context does NOT return multiple_active_contexts."""
+    from app.arbitration import WakeArbitrationStore, decide_wake
+    from app.models import DeviceMapping, WakeDetectedRequest
+    from app.session_store import SessionStore
+
+    devices = [
+        DeviceMapping(
+            key="living",
+            device_id="living-device",
+            room_id="living_room",
+            room_name="客厅",
+            ha_area_id="living_room",
+            wake_group="public_area",
+            priority=10,
+        ),
+        DeviceMapping(
+            key="bedroom",
+            device_id="bedroom-device",
+            room_id="bedroom",
+            room_name="主卧",
+            ha_area_id="bedroom",
+            wake_group="public_area",
+            priority=10,
+        ),
+    ]
+    store = SessionStore(state_path=tmp_path / "state.json")
+
+    # Device A (living) gets an active session from an earlier conversation
+    store.set(devices[0])
+    assert store.get() is not None  # living-device session exists
+
+    # Device B (bedroom) wakes up alone — A does not wake this time
+    arbitration = WakeArbitrationStore(window_ms=50)
+    decision = decide_wake(
+        devices,
+        store,
+        WakeDetectedRequest(
+            device_id="bedroom-device",
+            wake_word="你好小智",
+            wake_rms_dbfs=-18.0,
+        ),
+        arbitration_store=arbitration,
+    )
+
+    assert decision["type"] == "allow_session"
+    assert decision["device_id"] == "bedroom-device"
+
+    # Critical: active-context must return bedroom's context, NOT multiple_active
+    context = store.get()
+    from app.session_store import MULTIPLE_ACTIVE_CONTEXTS
+
+    assert context != MULTIPLE_ACTIVE_CONTEXTS, (
+        "stale session from living-device was not cleared; "
+        "active-context returned multiple_active_contexts"
+    )
+    assert context.device_id == "bedroom-device"
+    assert context.room_name == "主卧"
+
