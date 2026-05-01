@@ -51,9 +51,17 @@ def devices() -> DevicesResponse:
 def get_active_context(device_id: str | None = None) -> dict:
     context = session_store.get(device_id)
     if context is None:
+        logger.info("get_active_context device_id=%s result=no_active_context", device_id)
         return {"active": False}
     if context == MULTIPLE_ACTIVE_CONTEXTS:
+        logger.info("get_active_context device_id=%s result=multiple_active_contexts", device_id)
         return {"active": False, "status": MULTIPLE_ACTIVE_CONTEXTS}
+    logger.info(
+        "get_active_context device_id=%s result=active room_id=%s ha_area_id=%s",
+        device_id,
+        context.room_id,
+        context.ha_area_id,
+    )
     return {"active": True, **context.model_dump()}
 
 
