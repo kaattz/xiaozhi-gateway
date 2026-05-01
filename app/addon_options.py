@@ -43,7 +43,7 @@ def render_devices_config(options: dict[str, Any]) -> str:
                 "app_id": str(options.get("doubao_app_id") or "").strip(),
                 "access_key": str(options.get("doubao_access_key") or "").strip(),
                 "resource_id": str(
-                    options.get("doubao_resource_id") or "volc.service_type.10029"
+                    options.get("doubao_resource_id") or "seed-tts-2.0"
                 ).strip(),
                 "voice": str(
                     options.get("doubao_voice")

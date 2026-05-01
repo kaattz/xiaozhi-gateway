@@ -20,7 +20,7 @@ class AnnouncementDoubaoConfig(BaseModel):
     resource_id: str = Field(
         default_factory=lambda: os.getenv(
             "XIAOZHI_DOUBAO_RESOURCE_ID",
-            "volc.service_type.10029",
+            "seed-tts-2.0",
         )
     )
     voice: str = Field(

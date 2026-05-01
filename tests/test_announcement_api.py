@@ -65,7 +65,7 @@ def test_announcement_status_reports_tts_configuration_without_secret(monkeypatc
         "tts_configured": True,
         "voice": "zh_female_xiaohe_uranus_bigtts",
         "sample_rate": 16000,
-        "resource_id": "volc.service_type.10029",
+        "resource_id": "seed-tts-2.0",
     }
     assert "secret-access-key" not in response.text
 

@@ -80,7 +80,7 @@ announcement_enabled: true
 announcement_provider: doubao
 doubao_app_id: ""
 doubao_access_key: ""
-doubao_resource_id: volc.service_type.10029
+doubao_resource_id: seed-tts-2.0
 doubao_voice: zh_female_xiaohe_uranus_bigtts
 doubao_sample_rate: 16000
 ```
@@ -96,7 +96,7 @@ announcement:
   doubao:
     app_id: "..."
     access_key: "..."
-    resource_id: volc.service_type.10029
+    resource_id: seed-tts-2.0
     voice: zh_female_xiaohe_uranus_bigtts
     sample_rate: 16000
 ```

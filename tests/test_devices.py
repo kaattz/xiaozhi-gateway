@@ -112,7 +112,7 @@ def test_announcement_config_uses_defaults_when_missing(tmp_path):
     assert announcement.frame_duration_ms == 60
     assert announcement.doubao.app_id == ""
     assert announcement.doubao.access_key == ""
-    assert announcement.doubao.resource_id == "volc.service_type.10029"
+    assert announcement.doubao.resource_id == "seed-tts-2.0"
     assert announcement.doubao.voice == "zh_female_xiaohe_uranus_bigtts"
     assert announcement.doubao.sample_rate == 16000
 
@@ -130,7 +130,7 @@ announcement:
   doubao:
     app_id: "app-id"
     access_key: "access-key"
-    resource_id: "volc.service_type.10029"
+    resource_id: "seed-tts-2.0"
     voice: "voice-id"
     sample_rate: 16000
 """,
@@ -143,7 +143,7 @@ announcement:
     assert announcement.provider == "doubao"
     assert announcement.doubao.app_id == "app-id"
     assert announcement.doubao.access_key == "access-key"
-    assert announcement.doubao.resource_id == "volc.service_type.10029"
+    assert announcement.doubao.resource_id == "seed-tts-2.0"
     assert announcement.doubao.voice == "voice-id"
 
 
@@ -168,7 +168,7 @@ announcement:
     monkeypatch.setenv("XIAOZHI_ANNOUNCEMENT_PROVIDER", "doubao")
     monkeypatch.setenv("XIAOZHI_DOUBAO_APP_ID", "new-app")
     monkeypatch.setenv("XIAOZHI_DOUBAO_ACCESS_KEY", "new-key")
-    monkeypatch.setenv("XIAOZHI_DOUBAO_RESOURCE_ID", "volc.service_type.10029")
+    monkeypatch.setenv("XIAOZHI_DOUBAO_RESOURCE_ID", "seed-tts-2.0")
     monkeypatch.setenv("XIAOZHI_DOUBAO_VOICE", "new-voice")
     monkeypatch.setenv("XIAOZHI_DOUBAO_SAMPLE_RATE", "16000")
 
@@ -178,6 +178,6 @@ announcement:
     assert announcement.provider == "doubao"
     assert announcement.doubao.app_id == "new-app"
     assert announcement.doubao.access_key == "new-key"
-    assert announcement.doubao.resource_id == "volc.service_type.10029"
+    assert announcement.doubao.resource_id == "seed-tts-2.0"
     assert announcement.doubao.voice == "new-voice"
     assert announcement.doubao.sample_rate == 16000

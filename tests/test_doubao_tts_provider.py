@@ -71,7 +71,7 @@ def test_doubao_provider_sends_tts2_v3_events_and_returns_pcm():
         AnnouncementDoubaoConfig(
             app_id="app-id",
             access_key="access-key",
-            resource_id="volc.service_type.10029",
+            resource_id="seed-tts-2.0",
             voice="voice-a",
         ),
         connect_factory=connect_factory,
@@ -86,7 +86,7 @@ def test_doubao_provider_sends_tts2_v3_events_and_returns_pcm():
     assert captured["kwargs"]["additional_headers"] == {
         "X-Api-App-Key": "app-id",
         "X-Api-Access-Key": "access-key",
-        "X-Api-Resource-Id": "volc.service_type.10029",
+        "X-Api-Resource-Id": "seed-tts-2.0",
         "X-Api-Connect-Id": "connect-a",
     }
     sent_frames = [parse_tts2_frame(payload) for payload in ws.sent]

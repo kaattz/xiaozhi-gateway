@@ -10,7 +10,7 @@ def test_render_devices_config_from_addon_options():
             "announcement_provider": "doubao",
             "doubao_app_id": "app-id",
             "doubao_access_key": "access-key",
-            "doubao_resource_id": "volc.service_type.10029",
+            "doubao_resource_id": "seed-tts-2.0",
             "doubao_voice": "zh_female_xiaohe_jupiter_bigtts",
             "doubao_sample_rate": 16000,
             "devices": [
@@ -46,7 +46,7 @@ def test_render_devices_config_from_addon_options():
         "doubao": {
             "app_id": "app-id",
             "access_key": "access-key",
-            "resource_id": "volc.service_type.10029",
+            "resource_id": "seed-tts-2.0",
             "voice": "zh_female_xiaohe_jupiter_bigtts",
             "sample_rate": 16000,
         },

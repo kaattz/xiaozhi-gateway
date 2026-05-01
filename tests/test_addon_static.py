@@ -12,10 +12,10 @@ def read(path: str) -> str:
 def test_haos_addon_metadata_exposes_gateway_port_and_announcement_options():
     config = yaml.safe_load(read("config.yaml"))
 
-    assert config["version"] == "0.1.9"
+    assert config["version"] == "0.1.10"
     assert config["slug"] == "xiaozhi_gateway"
     assert config["ports"]["8125/tcp"] == 8125
-    assert config["options"]["addon_version"] == "0.1.9"
+    assert config["options"]["addon_version"] == "0.1.10"
     assert config["schema"]["addon_version"] == "str"
     assert "piper_host" not in config["options"]
     assert "piper_port" not in config["options"]
@@ -23,7 +23,7 @@ def test_haos_addon_metadata_exposes_gateway_port_and_announcement_options():
     assert config["options"]["announcement_provider"] == "doubao"
     assert config["options"]["doubao_app_id"] == ""
     assert config["options"]["doubao_access_key"] == ""
-    assert config["options"]["doubao_resource_id"] == "volc.service_type.10029"
+    assert config["options"]["doubao_resource_id"] == "seed-tts-2.0"
     assert config["options"]["doubao_voice"]
     assert config["options"]["doubao_sample_rate"] == 16000
     assert config["schema"]["announcement_enabled"] == "bool"
