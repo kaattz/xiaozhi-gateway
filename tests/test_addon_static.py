@@ -12,10 +12,10 @@ def read(path: str) -> str:
 def test_haos_addon_metadata_exposes_gateway_port_and_announcement_options():
     config = yaml.safe_load(read("config.yaml"))
 
-    assert config["version"] == "0.1.14"
+    assert config["version"] == "0.1.15"
     assert config["slug"] == "xiaozhi_gateway"
     assert config["ports"]["8125/tcp"] == 8125
-    assert config["options"]["addon_version"] == "0.1.14"
+    assert config["options"]["addon_version"] == "0.1.15"
     assert config["schema"]["addon_version"] == "str"
     assert "piper_host" not in config["options"]
     assert "piper_port" not in config["options"]

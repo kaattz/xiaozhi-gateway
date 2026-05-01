@@ -1,5 +1,5 @@
 name: Xiaozhi Gateway
-version: "0.1.14"
+version: "0.1.15"
 slug: xiaozhi_gateway
 description: Xiaozhi Home Assistant gateway
 arch:
@@ -14,7 +14,7 @@ map:
   - type: addon_config
     read_only: false
 options:
-  addon_version: "0.1.14"
+  addon_version: "0.1.15"
   announcement_enabled: true
   announcement_provider: doubao
   doubao_app_id: ""
