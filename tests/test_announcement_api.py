@@ -35,8 +35,8 @@ def test_announcement_creates_and_fetches_frames(monkeypatch):
     assert body["sample_rate"] == 16000
     assert body["frame_duration_ms"] == 60
     assert body["frame_count"] == 5
-    assert body["listen_after_playback"] is False
-    assert body["listen_timeout_seconds"] == 0
+    assert "listen_after_playback" not in body
+    assert "listen_timeout_seconds" not in body
 
     first = client.get(f"/announcement/jobs/{body['job_id']}/frames?offset=0&limit=4")
     assert first.status_code == 200
@@ -70,7 +70,7 @@ def test_announcement_status_reports_tts_configuration_without_secret(monkeypatc
     assert "secret-access-key" not in response.text
 
 
-def test_question_announcement_refreshes_active_context_and_returns_listen_window(monkeypatch):
+def test_question_announcement_mode_is_not_supported(monkeypatch):
     monkeypatch.setattr(
         main,
         "synthesize_announcement_frames",
@@ -88,15 +88,11 @@ def test_question_announcement_refreshes_active_context_and_returns_listen_windo
         },
     )
 
-    assert created.status_code == 200
-    assert created.json()["listen_after_playback"] is True
-    assert created.json()["listen_timeout_seconds"] == 8
+    assert created.status_code == 422
 
     active_context = client.get("/active-context")
     assert active_context.status_code == 200
-    assert active_context.json()["active"] is True
-    assert active_context.json()["device_id"] == "aa:bb:cc:dd:ee:ff"
-    assert active_context.json()["room_id"] == "living_room"
+    assert active_context.json() == {"active": False}
 
 
 def test_announcement_rejects_unknown_device():
