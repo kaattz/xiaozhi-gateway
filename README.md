@@ -50,7 +50,7 @@ https://github.com/kaattz/xiaozhi-gateway
 `xiaozhi-gateway` add-on 配置页里填写播报和设备信息：
 
 ```yaml
-addon_version: "0.1.11"
+addon_version: "0.1.12"
 announcement_enabled: true
 announcement_provider: doubao
 doubao_app_id: "你的火山语音合成服务 AppID"
@@ -66,11 +66,14 @@ devices:
     room_name: 客厅
     ha_area_id: living_room
     ha_device_id: ""
+    wake_group: public_area
+    priority: 10
+    mic_gain_offset_db: 0.0
 ```
 
 保存配置并重启 add-on 后，启动脚本会自动生成 `/config/devices.yaml`。不要再手工改 add-on 配置目录里的 `devices.yaml`，下次重启会被配置页内容覆盖。
 
-如果配置页里看不到 `addon_version: "0.1.11"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
+如果配置页里看不到 `addon_version: "0.1.12"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
 
 `announcement` 播报模式默认配置：
 
@@ -116,6 +119,11 @@ devices:
     client_id: "xiaozhi-living-room"
     room_id: "living_room"
     room_name: "客厅"
+    ha_area_id: "living_room"
+    ha_device_id: ""
+    wake_group: "public_area"
+    priority: 10
+    mic_gain_offset_db: 0.0
 ```
 
 3. 启动服务：
@@ -142,6 +150,37 @@ http://NAS_IP:8125
 http://NAS_IP:8125
 ```
 
+## Wake Arbitration
+
+ESP32 开启 Wake Arbitration 后，会在唤醒词命中时向 gateway 上报结构化字段，不上传唤醒音频：
+
+```json
+{
+  "device_id": "aa:bb:cc:dd:ee:ff",
+  "client_id": "xiaozhi-living-room",
+  "wake_word": "你好小智",
+  "wake_rms_dbfs": -18.5
+}
+```
+
+设备配置字段：
+
+| 字段 | 默认 | 说明 |
+|---|---:|---|
+| `wake_group` | 设备 key | 容易串音的设备填同一个组；不同组互不抢占。 |
+| `priority` | `0` | 响度差小于阈值时，数值大的优先。 |
+| `mic_gain_offset_db` | `0.0` | 麦克风增益校准，参与 `wake_rms_dbfs + mic_gain_offset_db` 比较。 |
+
+同一 `wake_group` 内多个设备在短窗口内唤醒时，只允许校准后响度更高的设备进入会话；单设备组直接允许。不同组可以同时 active。
+
+`GET /active-context` 在多个会话同时 active 时返回：
+
+```json
+{"active": false, "status": "multiple_active_contexts"}
+```
+
+这时 `ha-mcp-for-xiaozhi` 不会猜默认房间；用户明确说了房间/区域的 HA 工具调用仍可继续。
+
 ## 常用接口
 
 | 接口 | 用途 |
@@ -150,7 +189,7 @@ http://NAS_IP:8125
 | `GET /devices` | 查看设备和房间配置 |
 | `POST /wake-detected` | 设备上报唤醒 |
 | `POST /session/end` | 设备结束会话 |
-| `GET /active-context` | HA MCP 获取当前房间上下文 |
+| `GET /active-context` | HA MCP 获取当前房间上下文；多 active 时返回 `multiple_active_contexts` |
 | `GET /announcement/status` | 查看播报 TTS 是否启用、provider、voice 和凭据是否已加载，不返回密钥 |
 | `POST /announcement/jobs` | 把播报文本生成本地播放音频任务 |
 | `GET /announcement/jobs/{job_id}/frames` | 分页获取播报任务的 base64 Opus 帧 |

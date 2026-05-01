@@ -1,6 +1,7 @@
 from typing import Any, Literal
+import math
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DeviceMapping(BaseModel):
@@ -11,6 +12,9 @@ class DeviceMapping(BaseModel):
     room_name: str
     ha_area_id: str
     ha_device_id: str = ""
+    wake_group: str = ""
+    priority: int = 0
+    mic_gain_offset_db: float = 0.0
 
 
 class DevicesResponse(BaseModel):
@@ -35,7 +39,15 @@ class WakeDetectedRequest(BaseModel):
     device_id: str
     client_id: str = ""
     wake_word: str
+    wake_rms_dbfs: float
     timestamp: float | None = None
+
+    @field_validator("wake_rms_dbfs")
+    @classmethod
+    def validate_wake_rms_dbfs(cls, value: float) -> float:
+        if not math.isfinite(value):
+            raise ValueError("invalid wake_rms_dbfs")
+        return value
 
 
 class SessionEndRequest(BaseModel):

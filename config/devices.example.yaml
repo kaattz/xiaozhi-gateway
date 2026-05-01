@@ -6,6 +6,9 @@ devices:
     room_name: "客厅"
     ha_area_id: "living_room"
     ha_device_id: ""
+    wake_group: "public_area"
+    priority: 10
+    mic_gain_offset_db: 0.0
 
   bedroom_xiaozhi:
     device_id: "11:22:33:44:55:66"
@@ -14,6 +17,9 @@ devices:
     room_name: "卧室"
     ha_area_id: "bedroom"
     ha_device_id: ""
+    wake_group: "bedroom"
+    priority: 0
+    mic_gain_offset_db: 0.0
 
 announcement:
   enabled: true

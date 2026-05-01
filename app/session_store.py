@@ -5,6 +5,8 @@ from pathlib import Path
 
 from app.models import ActiveContext, DeviceMapping
 
+MULTIPLE_ACTIVE_CONTEXTS = "multiple_active_contexts"
+
 
 class SessionStore:
     def __init__(
@@ -18,6 +20,8 @@ class SessionStore:
         self._now = now
 
     def set(self, device: DeviceMapping) -> ActiveContext:
+        contexts = self._read_contexts()
+        contexts = self._active_contexts(contexts)
         context = ActiveContext(
             device_id=device.device_id,
             client_id=device.client_id,
@@ -27,27 +31,72 @@ class SessionStore:
             ha_device_id=device.ha_device_id,
             expires_at=self._now() + self._ttl_seconds,
         )
-        self._write(context)
+        contexts[context.device_id] = context
+        self._write_contexts(contexts)
         return context
 
-    def get(self) -> ActiveContext | None:
+    def get(self, device_id: str | None = None) -> ActiveContext | str | None:
+        contexts = self._read_contexts()
+        active = self._active_contexts(contexts)
+        if active != contexts:
+            self._write_contexts(active)
+
+        if device_id is not None:
+            return active.get(device_id)
+
+        if not active:
+            return None
+        if len(active) > 1:
+            return MULTIPLE_ACTIVE_CONTEXTS
+        return next(iter(active.values()))
+
+    def clear(self, device_id: str | None = None) -> None:
+        if device_id is None:
+            self._state_path.unlink(missing_ok=True)
+            return
+
+        contexts = self._read_contexts()
+        contexts.pop(device_id, None)
+        self._write_contexts(self._active_contexts(contexts))
+
+    def _read_contexts(self) -> dict[str, ActiveContext]:
         if not self._state_path.exists():
-            return None
+            return {}
 
-        context = ActiveContext.model_validate_json(
-            self._state_path.read_text(encoding="utf-8")
-        )
-        if context.expires_at <= self._now():
-            self.clear()
-            return None
-        return context
+        raw = json.loads(self._state_path.read_text(encoding="utf-8"))
+        if "device_id" in raw:
+            context = ActiveContext.model_validate(raw)
+            return {context.device_id: context}
 
-    def clear(self) -> None:
-        self._state_path.unlink(missing_ok=True)
+        contexts: dict[str, ActiveContext] = {}
+        for device_id, payload in raw.items():
+            context = ActiveContext.model_validate(payload)
+            contexts[device_id] = context
+        return contexts
 
-    def _write(self, context: ActiveContext) -> None:
+    def _active_contexts(
+        self, contexts: dict[str, ActiveContext]
+    ) -> dict[str, ActiveContext]:
+        return {
+            device_id: context
+            for device_id, context in contexts.items()
+            if context.expires_at > self._now()
+        }
+
+    def _write_contexts(self, contexts: dict[str, ActiveContext]) -> None:
+        if not contexts:
+            self._state_path.unlink(missing_ok=True)
+            return
+
         self._state_path.parent.mkdir(parents=True, exist_ok=True)
         self._state_path.write_text(
-            json.dumps(context.model_dump(), ensure_ascii=False, indent=2),
+            json.dumps(
+                {
+                    device_id: context.model_dump()
+                    for device_id, context in contexts.items()
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
             encoding="utf-8",
         )

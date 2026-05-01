@@ -1,5 +1,5 @@
 name: Xiaozhi Gateway
-version: "0.1.11"
+version: "0.1.12"
 slug: xiaozhi_gateway
 description: Xiaozhi Home Assistant gateway
 arch:
@@ -14,7 +14,7 @@ map:
   - type: addon_config
     read_only: false
 options:
-  addon_version: "0.1.11"
+  addon_version: "0.1.12"
   announcement_enabled: true
   announcement_provider: doubao
   doubao_app_id: ""
@@ -30,6 +30,9 @@ options:
       room_name: 客厅
       ha_area_id: living_room
       ha_device_id: ""
+      wake_group: public_area
+      priority: 0
+      mic_gain_offset_db: 0.0
 schema:
   addon_version: str
   announcement_enabled: bool
@@ -47,3 +50,6 @@ schema:
       room_name: str
       ha_area_id: str
       ha_device_id: str?
+      wake_group: str?
+      priority: int?
+      mic_gain_offset_db: float?

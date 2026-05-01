@@ -22,6 +22,9 @@ def test_render_devices_config_from_addon_options():
                     "room_name": "客厅",
                     "ha_area_id": "living_room",
                     "ha_device_id": "",
+                    "wake_group": "public_area",
+                    "priority": 10,
+                    "mic_gain_offset_db": -2.5,
                 }
             ],
         }
@@ -36,6 +39,9 @@ def test_render_devices_config_from_addon_options():
         "room_name": "客厅",
         "ha_area_id": "living_room",
         "ha_device_id": "",
+        "wake_group": "public_area",
+        "priority": 10,
+        "mic_gain_offset_db": -2.5,
     }
     assert "remote_text" not in config
     assert config["announcement"] == {

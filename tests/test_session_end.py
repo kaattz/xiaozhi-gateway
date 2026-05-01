@@ -22,17 +22,21 @@ def test_session_end_does_not_clear_another_device_session():
     client = TestClient(app)
     client.delete("/active-context")
     client.post("/active-context", json={"device_id": "aa:bb:cc:dd:ee:ff"})
+    client.post("/active-context", json={"device_id": "11:22:33:44:55:66"})
 
     response = client.post(
         "/session/end",
         json={"device_id": "11:22:33:44:55:66"},
     )
 
-    assert response.status_code == 409
-    assert response.json() == {
-        "detail": "active session belongs to another device",
-    }
-    assert client.get("/active-context").json()["device_id"] == "aa:bb:cc:dd:ee:ff"
+    assert response.status_code == 200
+    assert response.json() == {"ended": True}
+    response = client.get(
+        "/active-context",
+        params={"device_id": "aa:bb:cc:dd:ee:ff"},
+    )
+    assert response.json()["active"] is True
+    assert response.json()["device_id"] == "aa:bb:cc:dd:ee:ff"
 
 
 def test_session_end_is_idempotent_when_no_session_is_active():

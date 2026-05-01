@@ -11,7 +11,7 @@ REQUIRED_DEVICE_FIELDS = ("key", "device_id", "room_id", "room_name", "ha_area_i
 
 def render_devices_config(options: dict[str, Any]) -> str:
     devices = options.get("devices") or []
-    rendered_devices: dict[str, dict[str, str]] = {}
+    rendered_devices: dict[str, dict[str, Any]] = {}
 
     for device in devices:
         key = str(device.get("key") or "").strip()
@@ -30,6 +30,9 @@ def render_devices_config(options: dict[str, Any]) -> str:
             "room_name": str(device["room_name"]).strip(),
             "ha_area_id": str(device["ha_area_id"]).strip(),
             "ha_device_id": str(device.get("ha_device_id") or "").strip(),
+            "wake_group": str(device.get("wake_group") or key).strip(),
+            "priority": int(device.get("priority") or 0),
+            "mic_gain_offset_db": float(device.get("mic_gain_offset_db") or 0.0),
         }
 
     config = {

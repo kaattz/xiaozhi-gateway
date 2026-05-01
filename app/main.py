@@ -15,7 +15,7 @@ from app.announcement_audio import (
     UnsupportedAnnouncementProviderError,
     synthesize_announcement_frames,
 )
-from app.arbitration import decide_wake
+from app.arbitration import WakeArbitrationStore, decide_wake
 from app.config import load_announcement_config, load_devices
 from app.models import (
     ActiveContextSetRequest,
@@ -38,11 +38,12 @@ from app.pending_confirmations import (
     PendingNotFoundError,
     PendingResolvedError,
 )
-from app.session_store import SessionStore
+from app.session_store import MULTIPLE_ACTIVE_CONTEXTS, SessionStore
 
 app = FastAPI(title="Xiaozhi Gateway")
 logger = logging.getLogger(__name__)
 session_store = SessionStore()
+wake_arbitration_store = WakeArbitrationStore()
 announcement_jobs = AudioJobStore()
 pending_confirmations = PendingConfirmationStore()
 
@@ -58,10 +59,12 @@ def devices() -> DevicesResponse:
 
 
 @app.get("/active-context")
-def get_active_context() -> dict:
-    context = session_store.get()
+def get_active_context(device_id: str | None = None) -> dict:
+    context = session_store.get(device_id)
     if context is None:
         return {"active": False}
+    if context == MULTIPLE_ACTIVE_CONTEXTS:
+        return {"active": False, "status": MULTIPLE_ACTIVE_CONTEXTS}
     return {"active": True, **context.model_dump()}
 
 
@@ -82,7 +85,12 @@ def clear_active_context() -> dict[str, bool]:
 
 @app.post("/wake-detected")
 def wake_detected(request: WakeDetectedRequest) -> dict:
-    decision = decide_wake(load_devices(), session_store, request)
+    decision = decide_wake(
+        load_devices(),
+        session_store,
+        request,
+        arbitration_store=wake_arbitration_store,
+    )
     if decision["type"] == "unknown_device":
         raise HTTPException(status_code=404, detail="device not found")
     return decision
@@ -90,17 +98,11 @@ def wake_detected(request: WakeDetectedRequest) -> dict:
 
 @app.post("/session/end")
 def end_session(request: SessionEndRequest) -> dict[str, bool]:
-    context = session_store.get()
+    context = session_store.get(request.device_id)
     if context is None:
         return {"ended": False}
 
-    if context.device_id != request.device_id:
-        raise HTTPException(
-            status_code=409,
-            detail="active session belongs to another device",
-        )
-
-    session_store.clear()
+    session_store.clear(request.device_id)
     return {"ended": True}
 
 

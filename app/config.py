@@ -100,6 +100,8 @@ def load_devices(config_path: Path = DEFAULT_CONFIG_PATH) -> list[DeviceMapping]
             raise ValueError(f"missing room_id for device: {key}")
 
         device = DeviceMapping(key=key, **values)
+        if not device.wake_group:
+            device.wake_group = key
         if device.device_id in device_ids:
             raise ValueError(f"duplicate device_id: {device.device_id}")
         device_ids.add(device.device_id)

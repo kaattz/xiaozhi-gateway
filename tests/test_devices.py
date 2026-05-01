@@ -21,6 +21,9 @@ def test_devices_returns_configured_device_mappings():
                 "room_name": "客厅",
                 "ha_area_id": "living_room",
                 "ha_device_id": "",
+                "wake_group": "living_room_xiaozhi",
+                "priority": 0,
+                "mic_gain_offset_db": 0.0,
             },
             {
                 "key": "bedroom_xiaozhi",
@@ -30,6 +33,9 @@ def test_devices_returns_configured_device_mappings():
                 "room_name": "卧室",
                 "ha_area_id": "bedroom",
                 "ha_device_id": "",
+                "wake_group": "bedroom_xiaozhi",
+                "priority": 0,
+                "mic_gain_offset_db": 0.0,
             },
         ]
     }
