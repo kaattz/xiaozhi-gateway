@@ -8,4 +8,4 @@ if [ -f /data/options.json ]; then
   python -m app.addon_options /data/options.json /config/devices.yaml
 fi
 
-exec uvicorn app.main:app --host 0.0.0.0 --port 8125
+exec uvicorn app.main:app --host 0.0.0.0 --port 8125 --log-level info

@@ -28,6 +28,8 @@ from app.models import (
 )
 from app.session_store import MULTIPLE_ACTIVE_CONTEXTS, SessionStore
 
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(title="Xiaozhi Gateway")
 logger = logging.getLogger(__name__)
 session_store = SessionStore()
