@@ -22,6 +22,7 @@ from app.tts_providers.base import (
 DOUBAO_TTS2_V3_URL = "wss://openspeech.bytedance.com/api/v3/tts/bidirection"
 DOUBAO_TIMEOUT_SECONDS = 10
 HEADER = bytes([0x11, 0x14, 0x10, 0x00])
+MAX_ERROR_DETAIL_LENGTH = 300
 
 
 class Event(IntEnum):
@@ -171,7 +172,15 @@ class DoubaoTtsProvider:
         except TimeoutError as exc:
             raise DoubaoTtsTimeout("doubao synthesis timeout") from exc
         except WebSocketException as exc:
-            raise DoubaoTtsError("doubao websocket failed") from exc
+            detail = self._safe_exception_detail(exc, app_id, access_key)
+            if self._is_authentication_detail(detail):
+                raise DoubaoAuthenticationError(
+                    f"doubao websocket authentication failed: {detail}"
+                ) from exc
+            raise DoubaoTtsError(f"doubao websocket failed: {detail}") from exc
+        except OSError as exc:
+            detail = self._safe_exception_detail(exc, app_id, access_key)
+            raise DoubaoTtsError(f"doubao network failed: {detail}") from exc
 
         if not pcm:
             raise TtsEmptyAudioError("doubao produced no audio")
@@ -247,3 +256,27 @@ class DoubaoTtsProvider:
         if "401" in normalized or "403" in normalized or "auth" in normalized:
             return DoubaoAuthenticationError("doubao authentication failed")
         return DoubaoTtsError("doubao tts error")
+
+    def _safe_exception_detail(
+        self,
+        exc: Exception,
+        app_id: str,
+        access_key: str,
+    ) -> str:
+        message = str(exc).replace("\r", " ").replace("\n", " ").strip()
+        detail = type(exc).__name__
+        if message:
+            detail = f"{detail}: {message}"
+        for secret in (app_id, access_key):
+            if secret:
+                detail = detail.replace(secret, "<redacted>")
+        if len(detail) > MAX_ERROR_DETAIL_LENGTH:
+            detail = detail[:MAX_ERROR_DETAIL_LENGTH] + "..."
+        return detail
+
+    def _is_authentication_detail(self, detail: str) -> bool:
+        normalized = detail.lower()
+        return any(
+            marker in normalized
+            for marker in ("401", "403", "auth", "unauthorized", "forbidden")
+        )

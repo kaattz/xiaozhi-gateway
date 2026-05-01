@@ -6,11 +6,13 @@ import pytest
 from app.config import AnnouncementDoubaoConfig
 from app.tts_providers.doubao import (
     DoubaoAuthenticationError,
+    DoubaoTtsError,
     DoubaoTtsProvider,
     DoubaoTtsTimeout,
     MissingDoubaoApiKeyError,
 )
 from app.tts_providers.doubao import Event, parse_tts2_frame
+from websockets.exceptions import WebSocketException
 
 
 class FakeWebSocket:
@@ -142,3 +144,35 @@ def test_doubao_provider_maps_timeout():
 
     with pytest.raises(DoubaoTtsTimeout, match="timeout"):
         provider.synthesize_pcm("打开空调")
+
+
+def test_doubao_provider_preserves_safe_websocket_error_detail():
+    provider = DoubaoTtsProvider(
+        AnnouncementDoubaoConfig(app_id="app-id", access_key="access-key"),
+        connect_factory=lambda url, **kwargs: (_ for _ in ()).throw(
+            WebSocketException("proxy refused connection")
+        ),
+    )
+
+    with pytest.raises(DoubaoTtsError) as error:
+        provider.synthesize_pcm("打开空调")
+
+    assert str(error.value) == (
+        "doubao websocket failed: WebSocketException: proxy refused connection"
+    )
+    assert "access-key" not in str(error.value)
+
+
+def test_doubao_provider_maps_websocket_authentication_error():
+    provider = DoubaoTtsProvider(
+        AnnouncementDoubaoConfig(app_id="app-id", access_key="access-key"),
+        connect_factory=lambda url, **kwargs: (_ for _ in ()).throw(
+            WebSocketException("server rejected WebSocket connection: HTTP 403")
+        ),
+    )
+
+    with pytest.raises(DoubaoAuthenticationError) as error:
+        provider.synthesize_pcm("打开空调")
+
+    assert "HTTP 403" in str(error.value)
+    assert "access-key" not in str(error.value)
