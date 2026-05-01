@@ -39,8 +39,13 @@ class FakeWebSocket:
         return self._messages.pop(0)
 
 
-def make_frame(event: Event, payload: bytes = b"{}", session_id: str = "") -> bytes:
-    frame = bytearray([0x11, 0x14, 0x10, 0x00])
+def make_frame(
+    event: Event,
+    payload: bytes = b"{}",
+    session_id: str = "",
+    message_type: int = 0x1,
+) -> bytes:
+    frame = bytearray([0x11, (message_type << 4) | 0x4, 0x10, 0x00])
     frame.extend(struct.pack(">i", int(event)))
     if session_id:
         session_id_bytes = session_id.encode()
@@ -51,13 +56,53 @@ def make_frame(event: Event, payload: bytes = b"{}", session_id: str = "") -> by
     return bytes(frame)
 
 
+def make_server_connection_frame(event: Event, payload: bytes = b"{}") -> bytes:
+    frame = bytearray([0x11, 0x94, 0x10, 0x00])
+    frame.extend(struct.pack(">i", int(event)))
+    connect_id = b"connect-a"
+    frame.extend(struct.pack(">I", len(connect_id)))
+    frame.extend(connect_id)
+    frame.extend(struct.pack(">I", len(payload)))
+    frame.extend(payload)
+    return bytes(frame)
+
+
+def test_parse_tts2_frame_accepts_real_server_response_headers():
+    connection_started = parse_tts2_frame(
+        make_server_connection_frame(Event.CONNECTION_STARTED)
+    )
+    session_started = parse_tts2_frame(
+        make_frame(Event.SESSION_STARTED, session_id="session-a", message_type=0x9)
+    )
+    audio = parse_tts2_frame(
+        make_frame(
+            Event.TTS_RESPONSE,
+            b"\x01\x00\x02\x00",
+            session_id="session-a",
+            message_type=0xB,
+        )
+    )
+
+    assert connection_started.event == Event.CONNECTION_STARTED
+    assert connection_started.payload == b"{}"
+    assert session_started.event == Event.SESSION_STARTED
+    assert session_started.session_id == "session-a"
+    assert audio.event == Event.TTS_RESPONSE
+    assert audio.payload == b"\x01\x00\x02\x00"
+
+
 def test_doubao_provider_sends_tts2_v3_events_and_returns_pcm():
     ws = FakeWebSocket(
         [
-            make_frame(Event.CONNECTION_STARTED),
-            make_frame(Event.SESSION_STARTED, session_id="session-a"),
-            make_frame(Event.TTS_RESPONSE, b"\x01\x00\x02\x00", session_id="session-a"),
-            make_frame(Event.SESSION_FINISHED, session_id="session-a"),
+            make_server_connection_frame(Event.CONNECTION_STARTED),
+            make_frame(Event.SESSION_STARTED, session_id="session-a", message_type=0x9),
+            make_frame(
+                Event.TTS_RESPONSE,
+                b"\x01\x00\x02\x00",
+                session_id="session-a",
+                message_type=0xB,
+            ),
+            make_frame(Event.SESSION_FINISHED, session_id="session-a", message_type=0x9),
         ]
     )
     captured = {}
@@ -118,7 +163,7 @@ def test_doubao_provider_requires_v3_credentials():
 def test_doubao_provider_maps_authentication_error_without_leaking_key():
     ws = FakeWebSocket(
         [
-            make_frame(
+            make_server_connection_frame(
                 Event.CONNECTION_FAILED,
                 json.dumps({"code": 401, "message": "unauthorized"}).encode(),
             )

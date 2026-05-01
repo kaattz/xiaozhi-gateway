@@ -21,7 +21,22 @@ from app.tts_providers.base import (
 
 DOUBAO_TTS2_V3_URL = "wss://openspeech.bytedance.com/api/v3/tts/bidirection"
 DOUBAO_TIMEOUT_SECONDS = 10
-HEADER = bytes([0x11, 0x14, 0x10, 0x00])
+PROTOCOL_VERSION = 0x1
+HEADER_SIZE_WORDS = 0x1
+MESSAGE_TYPE_FULL_CLIENT_REQUEST = 0x1
+MESSAGE_TYPE_FULL_SERVER_RESPONSE = 0x9
+MESSAGE_TYPE_AUDIO_ONLY_SERVER = 0xB
+MESSAGE_TYPE_FLAG_WITH_EVENT = 0x4
+SERIALIZATION_JSON = 0x1
+COMPRESSION_NONE = 0x0
+HEADER = bytes(
+    [
+        (PROTOCOL_VERSION << 4) | HEADER_SIZE_WORDS,
+        (MESSAGE_TYPE_FULL_CLIENT_REQUEST << 4) | MESSAGE_TYPE_FLAG_WITH_EVENT,
+        (SERIALIZATION_JSON << 4) | COMPRESSION_NONE,
+        0x00,
+    ]
+)
 MAX_ERROR_DETAIL_LENGTH = 300
 
 
@@ -52,6 +67,12 @@ EVENTS_WITH_SESSION_ID = {
     Event.TTS_SENTENCE_START,
     Event.TTS_SENTENCE_END,
     Event.TTS_RESPONSE,
+}
+
+EVENTS_WITH_CONNECTION_ID = {
+    Event.CONNECTION_STARTED,
+    Event.CONNECTION_FAILED,
+    Event.CONNECTION_FINISHED,
 }
 
 
@@ -101,13 +122,30 @@ def make_tts2_frame(
 def parse_tts2_frame(frame: bytes) -> Tts2Frame:
     if not isinstance(frame, bytes):
         raise DoubaoTtsError("doubao tts2 frame is not bytes")
-    if len(frame) < 12:
+    if len(frame) < 4:
         raise DoubaoTtsError("doubao tts2 frame is too short")
-    if frame[:4] != HEADER:
-        raise DoubaoTtsError("doubao tts2 frame header is invalid")
 
-    event = Event(struct.unpack(">i", frame[4:8])[0])
-    offset = 8
+    version = frame[0] >> 4
+    header_size_words = frame[0] & 0x0F
+    message_type = frame[1] >> 4
+    message_type_flag = frame[1] & 0x0F
+    header_size = header_size_words * 4
+    if version != PROTOCOL_VERSION or header_size < 4 or len(frame) < header_size + 4:
+        raise DoubaoTtsError("doubao tts2 frame header is invalid")
+    if message_type_flag != MESSAGE_TYPE_FLAG_WITH_EVENT:
+        raise DoubaoTtsError("doubao tts2 frame missing event flag")
+    if message_type not in {
+        MESSAGE_TYPE_FULL_CLIENT_REQUEST,
+        MESSAGE_TYPE_FULL_SERVER_RESPONSE,
+        MESSAGE_TYPE_AUDIO_ONLY_SERVER,
+    }:
+        raise DoubaoTtsError("doubao tts2 frame message type is unsupported")
+
+    try:
+        event = Event(struct.unpack(">i", frame[header_size : header_size + 4])[0])
+    except ValueError as exc:
+        raise DoubaoTtsError("doubao tts2 frame event is unsupported") from exc
+    offset = header_size + 4
     session_id = ""
     if event in EVENTS_WITH_SESSION_ID:
         if len(frame) < offset + 4:
@@ -116,6 +154,12 @@ def parse_tts2_frame(frame: bytes) -> Tts2Frame:
         offset += 4
         session_id = frame[offset : offset + session_id_len].decode("utf-8")
         offset += session_id_len
+
+    if event in EVENTS_WITH_CONNECTION_ID:
+        if len(frame) < offset + 4:
+            raise DoubaoTtsError("doubao tts2 frame missing connection id length")
+        connection_id_len = struct.unpack(">I", frame[offset : offset + 4])[0]
+        offset += 4 + connection_id_len
 
     if len(frame) < offset + 4:
         raise DoubaoTtsError("doubao tts2 frame missing payload length")

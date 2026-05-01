@@ -50,7 +50,7 @@ https://github.com/kaattz/xiaozhi-gateway
 `xiaozhi-gateway` add-on 配置页里填写播报和设备信息：
 
 ```yaml
-addon_version: "0.1.10"
+addon_version: "0.1.11"
 announcement_enabled: true
 announcement_provider: doubao
 doubao_app_id: "你的火山语音合成服务 AppID"
@@ -70,7 +70,7 @@ devices:
 
 保存配置并重启 add-on 后，启动脚本会自动生成 `/config/devices.yaml`。不要再手工改 add-on 配置目录里的 `devices.yaml`，下次重启会被配置页内容覆盖。
 
-如果配置页里看不到 `addon_version: "0.1.10"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
+如果配置页里看不到 `addon_version: "0.1.11"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
 
 `announcement` 播报模式默认配置：
 
