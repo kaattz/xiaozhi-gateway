@@ -50,7 +50,7 @@ https://github.com/kaattz/xiaozhi-gateway
 `xiaozhi-gateway` add-on 配置页里填写播报和设备信息：
 
 ```yaml
-addon_version: "0.1.6"
+addon_version: "0.1.8"
 announcement_enabled: true
 announcement_provider: doubao
 doubao_app_id: "你的火山语音合成服务 AppID"
@@ -70,7 +70,7 @@ devices:
 
 保存配置并重启 add-on 后，启动脚本会自动生成 `/config/devices.yaml`。不要再手工改 add-on 配置目录里的 `devices.yaml`，下次重启会被配置页内容覆盖。
 
-如果配置页里看不到 `addon_version: "0.1.6"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
+如果配置页里看不到 `addon_version: "0.1.8"` 或播报配置，说明 HA 还在用旧 manifest。到加载项商店右上角菜单执行刷新/检查更新后，再安装或重启。
 
 `announcement` 播报模式默认配置：
 
@@ -151,6 +151,7 @@ http://NAS_IP:8125
 | `POST /wake-detected` | 设备上报唤醒 |
 | `POST /session/end` | 设备结束会话 |
 | `GET /active-context` | HA MCP 获取当前房间上下文 |
+| `GET /announcement/status` | 查看播报 TTS 是否启用、provider、voice 和凭据是否已加载，不返回密钥 |
 | `POST /announcement/jobs` | 把播报文本生成本地播放音频任务 |
 | `GET /announcement/jobs/{job_id}/frames` | 分页获取播报任务的 base64 Opus 帧 |
 | `POST /pending-confirmations` | HA 创建一个待用户确认的问题 |
@@ -179,6 +180,14 @@ data:
 ```
 
 `doubao` provider 使用火山 TTS2 V3 双向流式 WebSocket 正式接口。`doubao_voice` 填音色列表里的 voice_type，例如 `zh_female_xiaohe_uranus_bigtts`；如果要试 S2S-Omni 小何，可填 `zh_female_xiaohe_jupiter_bigtts`。`bailian`、`piper` 名称预留，不做自动降级。
+
+排查 TTS：
+
+```bash
+curl http://GATEWAY_IP:8125/announcement/status
+```
+
+如果 `/announcement/jobs` 失败，add-on 日志会输出 `announcement tts unavailable`，并带上 `reason`。常见值：`missing_credentials`、`authentication_failed`、`timeout`、`empty_audio`、`provider_error`。
 
 ## Pending Confirmation
 

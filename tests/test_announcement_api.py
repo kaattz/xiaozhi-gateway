@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 import app.main as main
 from app.announcement_audio import (
     AnnouncementDisabledError,
+    MissingTtsApiKeyError,
     TtsAuthenticationError,
     TtsTimeoutError,
     UnsupportedAnnouncementProviderError,
@@ -48,6 +49,25 @@ def test_announcement_creates_and_fetches_frames(monkeypatch):
     assert last.status_code == 200
     assert last.json()["frames_base64"] == ["Zml2ZQ=="]
     assert last.json()["next_offset"] is None
+
+
+def test_announcement_status_reports_tts_configuration_without_secret(monkeypatch):
+    monkeypatch.setenv("XIAOZHI_DOUBAO_APP_ID", "app-id")
+    monkeypatch.setenv("XIAOZHI_DOUBAO_ACCESS_KEY", "secret-access-key")
+
+    response = client.get("/announcement/status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {
+        "enabled": True,
+        "provider": "doubao",
+        "tts_configured": True,
+        "voice": "zh_female_xiaohe_uranus_bigtts",
+        "sample_rate": 16000,
+        "resource_id": "volc.service_type.10029",
+    }
+    assert "secret-access-key" not in response.text
 
 
 def test_question_announcement_refreshes_active_context_and_returns_listen_window(monkeypatch):
@@ -141,3 +161,23 @@ def test_announcement_maps_auth_and_timeout_errors(monkeypatch):
     )
     assert timeout.status_code == 504
     assert timeout.json()["detail"] == "doubao synthesis timeout"
+
+
+def test_announcement_logs_tts_unavailable_reason(monkeypatch, caplog):
+    monkeypatch.setattr(
+        main,
+        "synthesize_announcement_frames",
+        lambda text, config: (_ for _ in ()).throw(
+            MissingTtsApiKeyError("doubao app_id/access_key is not configured")
+        ),
+    )
+
+    response = client.post(
+        "/announcement/jobs",
+        json={"device_id": "aa:bb:cc:dd:ee:ff", "text": "hello"},
+    )
+
+    assert response.status_code == 500
+    assert "announcement tts unavailable" in caplog.text
+    assert "missing_credentials" in caplog.text
+    assert "doubao app_id/access_key is not configured" in caplog.text

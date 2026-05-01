@@ -1,6 +1,6 @@
 [project]
 name = "xiaozhi-gateway"
-version = "0.1.7"
+version = "0.1.8"
 description = "Internal Xiaozhi wake arbitration and room context gateway"
 requires-python = ">=3.12"
 dependencies = [

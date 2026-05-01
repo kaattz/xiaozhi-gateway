@@ -108,6 +108,44 @@ def _find_device(device_id: str):
     return next((device for device in load_devices() if device.device_id == device_id), None)
 
 
+def _announcement_status() -> dict:
+    config = load_announcement_config()
+    return {
+        "enabled": config.enabled,
+        "provider": config.provider,
+        "tts_configured": bool(
+            config.doubao.app_id.strip() and config.doubao.access_key.strip()
+        ),
+        "voice": config.doubao.voice,
+        "sample_rate": config.doubao.sample_rate,
+        "resource_id": config.doubao.resource_id,
+    }
+
+
+def _log_announcement_tts_failure(
+    *,
+    request: AnnouncementJobRequest,
+    reason: str,
+    error: Exception,
+) -> None:
+    status = _announcement_status()
+    logger.error(
+        "announcement tts unavailable reason=%s provider=%s configured=%s "
+        "voice=%s sample_rate=%s resource_id=%s device_id=%s client_id=%s "
+        "mode=%s detail=%s",
+        reason,
+        status["provider"],
+        status["tts_configured"],
+        status["voice"],
+        status["sample_rate"],
+        status["resource_id"],
+        request.device_id,
+        request.client_id,
+        request.mode,
+        str(error),
+    )
+
+
 def _pending_created_response(item: PendingConfirmation) -> PendingConfirmationCreated:
     return PendingConfirmationCreated(
         confirmation_id=item.confirmation_id,
@@ -203,6 +241,11 @@ def resolve_pending_confirmation(
     )
 
 
+@app.get("/announcement/status")
+def announcement_status() -> dict:
+    return _announcement_status()
+
+
 @app.post("/announcement/jobs", response_model=AnnouncementJobCreated)
 def create_announcement_job(request: AnnouncementJobRequest) -> AnnouncementJobCreated:
     device = _find_device(request.device_id)
@@ -210,24 +253,75 @@ def create_announcement_job(request: AnnouncementJobRequest) -> AnnouncementJobC
         raise HTTPException(status_code=404, detail="device not found")
 
     announcement_config = load_announcement_config()
+    logger.info(
+        "announcement job requested provider=%s configured=%s voice=%s "
+        "sample_rate=%s resource_id=%s mode=%s device_id=%s client_id=%s text_length=%d",
+        announcement_config.provider,
+        bool(
+            announcement_config.doubao.app_id.strip()
+            and announcement_config.doubao.access_key.strip()
+        ),
+        announcement_config.doubao.voice,
+        announcement_config.doubao.sample_rate,
+        announcement_config.doubao.resource_id,
+        request.mode,
+        device.device_id,
+        request.client_id,
+        len(request.text),
+    )
     try:
         frames = synthesize_announcement_frames(
             request.text,
             announcement_config,
         )
     except AnnouncementDisabledError as exc:
+        _log_announcement_tts_failure(
+            request=request,
+            reason="disabled",
+            error=exc,
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except UnsupportedAnnouncementProviderError as exc:
+        _log_announcement_tts_failure(
+            request=request,
+            reason="unsupported_provider",
+            error=exc,
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except MissingTtsApiKeyError as exc:
+        _log_announcement_tts_failure(
+            request=request,
+            reason="missing_credentials",
+            error=exc,
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except TtsAuthenticationError as exc:
+        _log_announcement_tts_failure(
+            request=request,
+            reason="authentication_failed",
+            error=exc,
+        )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except TtsTimeoutError as exc:
+        _log_announcement_tts_failure(
+            request=request,
+            reason="timeout",
+            error=exc,
+        )
         raise HTTPException(status_code=504, detail=str(exc)) from exc
     except TtsEmptyAudioError as exc:
+        _log_announcement_tts_failure(
+            request=request,
+            reason="empty_audio",
+            error=exc,
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except TtsProviderError as exc:
+        _log_announcement_tts_failure(
+            request=request,
+            reason="provider_error",
+            error=exc,
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     logger.info(
