@@ -58,6 +58,18 @@ def render_devices_config(options: dict[str, Any]) -> str:
                 ).strip(),
             },
         },
+        "playback": {
+            "ha_base_url": str(options.get("ha_base_url") or "").strip().rstrip("/"),
+            "ha_access_token": str(options.get("ha_access_token") or "").strip(),
+            "public_stream_base_url": str(
+                options.get("public_stream_base_url") or ""
+            )
+            .strip()
+            .rstrip("/"),
+            "request_timeout_seconds": float(
+                options.get("ha_playback_request_timeout_seconds") or 5
+            ),
+        },
     }
     return yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
 

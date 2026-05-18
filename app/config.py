@@ -73,6 +73,24 @@ class AnnouncementConfig(BaseModel):
     doubao: AnnouncementDoubaoConfig = Field(default_factory=AnnouncementDoubaoConfig)
 
 
+class PlaybackConfig(BaseModel):
+    ha_base_url: str = Field(
+        default_factory=lambda: os.getenv("XIAOZHI_HA_BASE_URL", "")
+    )
+    ha_access_token: str = Field(
+        default_factory=lambda: os.getenv("XIAOZHI_HA_ACCESS_TOKEN", "")
+    )
+    public_stream_base_url: str = Field(
+        default_factory=lambda: os.getenv("XIAOZHI_PLAYBACK_PUBLIC_STREAM_BASE_URL", "")
+    )
+    request_timeout_seconds: float = Field(default=5.0, gt=0)
+
+    @field_validator("ha_base_url", "public_stream_base_url")
+    @classmethod
+    def trim_url(cls, value: str) -> str:
+        return str(value).strip().rstrip("/")
+
+
 def parse_bool(value: object) -> bool:
     if isinstance(value, bool):
         return value
@@ -110,6 +128,20 @@ def apply_announcement_env_overrides(values: dict) -> dict:
 
     if doubao:
         merged["doubao"] = doubao
+    return merged
+
+
+def apply_playback_env_overrides(values: dict) -> dict:
+    merged = dict(values)
+    env_fields = {
+        "XIAOZHI_HA_BASE_URL": ("ha_base_url", str),
+        "XIAOZHI_HA_ACCESS_TOKEN": ("ha_access_token", str),
+        "XIAOZHI_PLAYBACK_PUBLIC_STREAM_BASE_URL": ("public_stream_base_url", str),
+        "XIAOZHI_PLAYBACK_REQUEST_TIMEOUT_SECONDS": ("request_timeout_seconds", float),
+    }
+    for env_name, (field_name, cast) in env_fields.items():
+        if env_name in os.environ:
+            merged[field_name] = cast(os.environ[env_name])
     return merged
 
 
@@ -151,3 +183,14 @@ def load_announcement_config(
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     announcement = apply_announcement_env_overrides(raw.get("announcement") or {})
     return AnnouncementConfig.model_validate(announcement)
+
+
+def load_playback_config(
+    config_path: Path = DEFAULT_CONFIG_PATH,
+) -> PlaybackConfig:
+    if not config_path.exists():
+        return PlaybackConfig()
+
+    raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    playback = apply_playback_env_overrides(raw.get("playback") or {})
+    return PlaybackConfig.model_validate(playback)

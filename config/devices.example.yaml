@@ -32,3 +32,9 @@ announcement:
     resource_id: "seed-tts-2.0"
     voice: "zh_female_xiaohe_uranus_bigtts"
     sample_rate: 16000
+
+playback:
+  ha_base_url: "http://homeassistant.local:8123"
+  ha_access_token: ""
+  public_stream_base_url: "http://xiaozhi-gateway.local:8125"
+  request_timeout_seconds: 5.0

@@ -86,3 +86,34 @@ class AnnouncementJobCreated(AudioJobCreated):
 
 class AnnouncementFramesResponse(AudioFramesResponse):
     pass
+
+
+class PlaybackSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    device_id: str
+    client_id: str = ""
+    media_player_entity_id: str = Field(min_length=1, max_length=128)
+    stream_format: str = "ogg_opus"
+    sample_rate: int = Field(gt=0)
+    frame_duration_ms: int = Field(default=60, gt=0)
+    initial_buffer_ms: int = Field(default=500, ge=300, le=1000)
+    timeout_ms: int = Field(default=60000, ge=10000, le=120000)
+    restore_listening: bool = True
+    replace_existing: bool = True
+
+    @field_validator("stream_format")
+    @classmethod
+    def validate_stream_format(cls, value: str) -> str:
+        if value != "ogg_opus":
+            raise ValueError("stream_format must be ogg_opus")
+        return value
+
+
+class PlaybackSessionCreated(BaseModel):
+    session_id: str
+    device_id: str
+    client_id: str = ""
+    upload_url: str
+    stream_url: str
+    stream_format: str = "ogg_opus"

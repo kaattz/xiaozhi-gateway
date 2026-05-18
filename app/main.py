@@ -1,7 +1,12 @@
 import base64
+import asyncio
+import json
 import logging
+import uuid
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 
 from app.audio_frames import FRAME_DURATION_MS, SAMPLE_RATE
 from app.audio_jobs import AudioJobStore
@@ -16,15 +21,22 @@ from app.announcement_audio import (
     synthesize_announcement_frames,
 )
 from app.arbitration import WakeArbitrationStore, decide_wake
-from app.config import load_announcement_config, load_devices
+from app.config import load_announcement_config, load_devices, load_playback_config
 from app.models import (
     ActiveContextSetRequest,
     AnnouncementFramesResponse,
     AnnouncementJobCreated,
     AnnouncementJobRequest,
     DevicesResponse,
+    PlaybackSessionCreated,
+    PlaybackSessionRequest,
     SessionEndRequest,
     WakeDetectedRequest,
+)
+from app.playback import (
+    PlaybackSessionStore,
+    call_home_assistant_play_media,
+    validate_public_stream_base_url,
 )
 from app.session_store import MULTIPLE_ACTIVE_CONTEXTS, SessionStore
 
@@ -35,6 +47,7 @@ logger = logging.getLogger(__name__)
 session_store = SessionStore()
 wake_arbitration_store = WakeArbitrationStore()
 announcement_jobs = AudioJobStore()
+playback_sessions = PlaybackSessionStore()
 
 
 @app.get("/health")
@@ -277,3 +290,156 @@ def get_announcement_frames(
         next_offset=next_offset,
         total_frames=total_frames,
     )
+
+
+@app.post("/playback/sessions", response_model=PlaybackSessionCreated)
+def create_playback_session(
+    request: PlaybackSessionRequest,
+    http_request: Request,
+) -> PlaybackSessionCreated:
+    device = _find_device(request.device_id)
+    if device is None:
+        raise HTTPException(status_code=404, detail="device not found")
+
+    playback_config = load_playback_config()
+    try:
+        public_base = validate_public_stream_base_url(playback_config.public_stream_base_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    session_id = uuid.uuid4().hex
+    stream_path = f"/playback/sessions/{session_id}/stream.ogg"
+    stream_url = public_base + stream_path
+    upload_url = str(http_request.url_for("upload_playback_session", session_id=session_id))
+    parsed_upload = urlsplit(upload_url)
+    if parsed_upload.scheme == "http":
+        upload_url = "ws://" + parsed_upload.netloc + parsed_upload.path
+    elif parsed_upload.scheme == "https":
+        upload_url = "wss://" + parsed_upload.netloc + parsed_upload.path
+
+    session = playback_sessions.create(
+        request,
+        session_id=session_id,
+        stream_url=stream_url,
+        upload_url=upload_url,
+    )
+    logger.info(
+        "playback session created session=%s device_id=%s client_id=%s entity_id=%s stream_host=%s",
+        session.session_id,
+        session.device_id,
+        session.client_id,
+        session.media_player_entity_id,
+        urlsplit(session.stream_url).netloc,
+    )
+    return PlaybackSessionCreated(
+        session_id=session.session_id,
+        device_id=session.device_id,
+        client_id=session.client_id,
+        upload_url=session.upload_url,
+        stream_url=session.stream_url,
+    )
+
+
+async def _call_play_media_once(session, playback_config) -> None:
+    if session.ha_play_media_called:
+        return
+    if session.buffered_audio_ms <= 0:
+        session.fail("no_audio")
+        return
+
+    try:
+        await asyncio.to_thread(
+            call_home_assistant_play_media,
+            playback_config,
+            session.media_player_entity_id,
+            session.stream_url,
+        )
+        session.mark_ha_play_media_called()
+        logger.info(
+            "playback HA play_media called session=%s entity_id=%s stream_url=%s",
+            session.session_id,
+            session.media_player_entity_id,
+            session.stream_url,
+        )
+    except Exception as exc:
+        logger.error(
+            "playback HA play_media failed session=%s detail=%s",
+            session.session_id,
+            exc,
+        )
+        session.fail("ha_play_media_failed")
+
+
+@app.websocket("/playback/sessions/{session_id}/upload")
+async def upload_playback_session(websocket: WebSocket, session_id: str) -> None:
+    session = playback_sessions.get(session_id)
+    if session is None:
+        await websocket.close(code=1008)
+        return
+
+    await websocket.accept()
+    playback_config = load_playback_config()
+    try:
+        while True:
+            while status := session.pop_status():
+                await websocket.send_json(status)
+            if session.terminal:
+                break
+
+            try:
+                message = await asyncio.wait_for(websocket.receive(), timeout=0.05)
+            except asyncio.TimeoutError:
+                continue
+
+            if message["type"] == "websocket.disconnect":
+                break
+
+            data = message.get("bytes")
+            if data is not None:
+                ready_for_ha = session.add_frame(data)
+                if ready_for_ha:
+                    await _call_play_media_once(session, playback_config)
+                continue
+
+            text = message.get("text")
+            if text:
+                try:
+                    payload = json.loads(text)
+                except json.JSONDecodeError:
+                    session.fail("invalid_control_message")
+                    continue
+                command = payload.get("type")
+                if command == "end":
+                    await _call_play_media_once(session, playback_config)
+                    session.close_input()
+                elif command == "cancel":
+                    session.cancel("cancelled")
+                else:
+                    session.fail("invalid_control_message")
+    except WebSocketDisconnect:
+        return
+
+
+@app.get("/playback/sessions/{session_id}/stream.ogg")
+def stream_playback_session(session_id: str) -> StreamingResponse:
+    session = playback_sessions.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    if session.cancelled:
+        raise HTTPException(status_code=410, detail=session.fail_reason or "session cancelled")
+    if session.failed:
+        raise HTTPException(status_code=500, detail=session.fail_reason or "session failed")
+
+    return StreamingResponse(
+        session.iter_ogg(),
+        media_type="audio/ogg; codecs=opus",
+    )
+
+
+@app.delete("/playback/sessions/{session_id}")
+def cancel_playback_session(session_id: str) -> dict[str, bool]:
+    session = playback_sessions.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    session.cancel("cancelled")
+    return {"cancelled": True}

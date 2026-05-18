@@ -14,6 +14,10 @@ def test_render_devices_config_from_addon_options():
             "doubao_voice": "zh_female_xiaohe_jupiter_bigtts",
             "doubao_sample_rate": 16000,
             "doubao_speech_speed": "快速",
+            "ha_base_url": "http://homeassistant.local:8123",
+            "ha_access_token": "ha-token",
+            "public_stream_base_url": "http://xiaozhi-gateway.local:8125",
+            "ha_playback_request_timeout_seconds": 7,
             "devices": [
                 {
                     "key": "living_room_xiaozhi",
@@ -58,6 +62,12 @@ def test_render_devices_config_from_addon_options():
             "sample_rate": 16000,
             "speech_speed": "快速",
         },
+    }
+    assert config["playback"] == {
+        "ha_base_url": "http://homeassistant.local:8123",
+        "ha_access_token": "ha-token",
+        "public_stream_base_url": "http://xiaozhi-gateway.local:8125",
+        "request_timeout_seconds": 7.0,
     }
 
 
