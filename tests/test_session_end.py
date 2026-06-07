@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_session_end_clears_active_context_for_same_device():
+def test_session_end_keeps_active_context_for_late_tool_calls():
     client = TestClient(app)
     client.delete("/active-context")
     client.post("/active-context", json={"device_id": "aa:bb:cc:dd:ee:ff"})
@@ -15,7 +15,9 @@ def test_session_end_clears_active_context_for_same_device():
 
     assert response.status_code == 200
     assert response.json() == {"ended": True}
-    assert client.get("/active-context").json() == {"active": False}
+    context = client.get("/active-context").json()
+    assert context["active"] is True
+    assert context["device_id"] == "aa:bb:cc:dd:ee:ff"
 
 
 def test_session_end_does_not_clear_another_device_session():

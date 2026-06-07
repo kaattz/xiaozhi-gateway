@@ -59,6 +59,19 @@ class SessionStore:
         contexts.pop(device_id, None)
         self._write_contexts(self._active_contexts(contexts))
 
+    def end(self, device_id: str, grace_seconds: int) -> bool:
+        contexts = self._active_contexts(self._read_contexts())
+        context = contexts.get(device_id)
+        if context is None:
+            self._write_contexts(contexts)
+            return False
+
+        contexts[device_id] = context.model_copy(
+            update={"expires_at": self._now() + grace_seconds}
+        )
+        self._write_contexts(contexts)
+        return True
+
     def _read_contexts(self) -> dict[str, ActiveContext]:
         if not self._state_path.exists():
             return {}

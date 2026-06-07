@@ -48,6 +48,7 @@ session_store = SessionStore()
 wake_arbitration_store = WakeArbitrationStore()
 announcement_jobs = AudioJobStore()
 playback_sessions = PlaybackSessionStore()
+SESSION_END_CONTEXT_GRACE_SECONDS = 30
 
 
 @app.get("/health")
@@ -108,12 +109,12 @@ def wake_detected(request: WakeDetectedRequest) -> dict:
 
 @app.post("/session/end")
 def end_session(request: SessionEndRequest) -> dict[str, bool]:
-    context = session_store.get(request.device_id)
-    if context is None:
-        return {"ended": False}
-
-    session_store.clear(request.device_id)
-    return {"ended": True}
+    return {
+        "ended": session_store.end(
+            request.device_id,
+            grace_seconds=SESSION_END_CONTEXT_GRACE_SECONDS,
+        )
+    }
 
 
 def _find_device(device_id: str):
